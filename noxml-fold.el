@@ -1,9 +1,35 @@
-;; fold attempt for noXML, copying a lot from auctex's tex-fold.el
+;; noxml-fold.el --- Fold XML elements.
+
+;; Copyright (C) 2014 Patrick McAllister
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;; Comments:
+
+;; This is a minor mode that tries to enable useful folding for XML
+;; files, copying a lot from AUCTeX's tex-fold.el. It presupposes that
+;; nxml-mode is the major-mode.
+
+;; The most useful entry points for users are `noXML-fold-dwim', and
+;; `noXML-fold-region'.
+
+;; Since this mode uses overlays, it does *not* scale: for very
+;; long/deeply nested XML, you should only fold what's within view, or
+;; make use of `narrow-to-region'.
 
 (require 'overlay)
 (require 'nxml-mode)
-
-
 
 ;;; configuration, vars etc.
 
@@ -86,22 +112,15 @@ overlays between two existing ones.")
 (defvar noXML-fold-ellipsis "..."
   "String used as display string for overlays instead of a zero-length string.")
 
-(defcustom noXML-fold-unspec-inline-display-string "[inl]"
-  "Display string for unspecified macros.
-This string will be displayed if a single macro is being hidden
-which is not specified in `noXML-fold-macro-spec-list'."
-  :type '(string)
-  :group 'noXML-fold)
-
 (defcustom noXML-fold-command-prefix "\C-c\C-o\C-f"
-  "Prefix key to use for commands in TeX Fold mode.
-The value of this variable is checked as part of loading TeX Fold mode.
+  "Prefix key to use for commands in noXML-fold mode.
+The value of this variable is checked as part of loading noXML-fold mode.
 After that, changing the prefix key requires manipulating keymaps."
   :type 'string
   :group 'noXML-fold)
 
 (defcustom noXML-fold-auto nil
-  "If non-nil, fold macros automatically after `TeX-insert-macro'."
+  "If non-nil, fold macros automatically. Leave this at `nil' for the time being!!"
   :group 'noXML-fold
   :type 'boolean)
 
@@ -110,15 +129,16 @@ After that, changing the prefix key requires manipulating keymaps."
     (define-key map "\C-o" 'noXML-fold-dwim)
     (define-key map "\C-b" 'noXML-fold-buffer)
     (define-key map "\C-r" 'noXML-fold-region)
-    ;; (define-key map "\C-p" 'TeX-fold-paragraph)
     (define-key map "\C-m" 'noXML-fold-macro)
     (define-key map "\C-e" 'noXML-fold-env)
-    ;; (define-key map "\C-c" 'TeX-fold-comment)
     (define-key map "b"    'noXML-fold-clearout-buffer)
     (define-key map "r"    'noXML-fold-clearout-region)
-    ;; (define-key map "p"    'TeX-fold-clearout-paragraph)
     (define-key map "i"    'noXML-fold-clearout-item)
     map))
+
+(defgroup noXML-fold nil
+  "Fold xml elements."
+  :group 'languages)
 
 (defcustom noXML-fold-unspec-block-display-string "[bl]"
   "Display string for unspecified environments.
@@ -127,71 +147,56 @@ hidden which is not specified in `noXML-fold-env-spec-list'."
   :type '(string)
   :group 'noXML-fold)
 
+(defcustom noXML-fold-unspec-inline-display-string "[inl]"
+  "Display string for unspecified macros.
+This string will be displayed if a single macro is being hidden
+which is not specified in `noXML-fold-macro-spec-list'."
+  :type '(string)
+  :group 'noXML-fold)
+
 (defcustom noXML-fold-unspec-use-name t
   "If non-nil use the name of an unspecified item as display string.
 Set it to nil if you want to use the values of the variables
-`TeX-fold-unspec-macro-display-string' or
-`TeX-fold-unspec-env-display-string' respectively as a display
+`noXML-fold-unspec-block-display-string' or
+`noXML-fold-unspec-inline-display-string' respectively as a display
 string for any unspecified macro or environment."
   :type 'boolean
   :group 'noXML-fold)
 
-(defcustom noXML-fold-spec-list
-  `(("[a]" ("anchor"))
-    ("[lb]" ("lb"))
-    ("[r]" ("ref" "ptr"))
-    (noXML-get-content ("head" "label" "hi" "persName" "p" "lem" "rdg"))
-    (noXML-render-first-child ("app" "div")))
+(defcustom noXML-fold-spec-list nil
   "List of replacement specifiers and elements to fold.
 
 The first element of each item can be a string, an integer or a
 function symbol.  The second element is a list of elements to fold.
 
 If the first element is a string, it will be used as a display
-replacement for the whole macro.  Numbers in braces, brackets,
-parens or angle brackets will be replaced by the respective macro
-argument.  For example \"{1}\" will be replaced by the first
-mandatory argument of the macro.  One can also define
-alternatives within the specifier which are used if an argument
-is not found.  Alternatives are separated by \"||\".  They are
-most useful with optional arguments.  As an example, the default
-specifier for \\item is \"[1]:||*\" which means that if there is
-an optional argument, its value is shown followed by a colon.  If
-there is no optional argument, only an asterisk is used as the
-display string.
-
-If the first element is an integer, the macro will be replaced by
-the respective macro argument.
+replacement for the whole element.
 
 If the first element is a function symbol, the function will be
 called with all mandatory arguments of the macro and the result
 of the function call will be used as a replacement for the macro.
 
 Setting this variable does not take effect immediately.  Use
-Customize or reset the mode."
+Customize or reset the mode.
+
+An example I use for TEI XML:
+
+`((\"⚓\" (\"anchor\"));; some string specifiers
+ (\"⚡\" (\"pb\"))
+ (\"ₗ\" (\"lb\"))
+ (\"⚐\" (\"note\"))
+ (\"ₓ\" (\"gap\"))
+ (\"➶\" (\"ref\" \"ptr\"))
+ (noXML-render-direct-children nil);; okay, I don't use this much
+ (noXML-get-content
+  (\"label\" \"hi\" \"q\" \"corr\" \"persName\" \"span\" \"lem\" \"rdg\" \"emph\" \"del\" \"unclear\" \"w\" \"add\"));; don't hide the content here
+ (noXML-render-first-child (\"app\")))';; for the app elements, show whatever is the first sub-element
+"
   :type '(repeat (group (choice (string :tag "Display String")
 				(integer :tag "Number of argument" :value 1)
 				(function :tag "Function to execute"))
 			(repeat :tag "Element" (string))))
   :group 'noXML-fold)
-
-(defcustom noXML-lang-input-methods 
-   '(
-     ("^sa$" "devanagari-kyoto-harvard")
-     ("^bo$" "tibetan-wylie")
-     (".*-Latn$" "")
-     (".*-Deva$" "devanagari-kyoto-harvard")
-     )
-  "A map of xml:lang attribute values to emacs input methods. 
-
-An empty value for the input method means that the input method
-is not changed. The value of the xml:lang attribute is treated as
-a regexp, and is (or at least should be?) compared to the value
-in the same sequence as defined (i.e.: sa-Latn precedes *-Latn)."
-  :group 'noXML-fold
-  ;;:type '(alist :key-type string :tag "xml:lang value"  :value-type (list :tag "Input method" string))
-  :type '(alist :key-type (string :tag "Language abbreviation")  :value-type (group (string :tag "Input method")))
-  )
 
 (defvar noXML-fold-spec-list-internal nil
   "Internal list of display strings and macros to fold.
@@ -201,19 +206,7 @@ respectively, i.e. contents of both `noXML-fold-spec-list'
 and <mode-prefix>-fold-macro-spec-list.")
 ;; (make-variable-buffer-local 'noXML-fold-spec-list-internal);; not a good idea: do this in mode definition below (see http://www.emacswiki.org/emacs/BufferLocalVariable)
 
-;; (defcustom noXML-fold-boost-list
-;;  `("app")
-;;   "List of elements whose priority should be  boosted when folding.
-
-;; The elements defined in this list won't have the normal
-;; priority (which corresponds to the depth in the document), but
-;; will have the same priority as the surrounding element. This
-;; should help in showing constructs like <p>xy<app></app></p>,
-;; where the app element would be hidden with the default priority."
-;;   :group 'noXML-fold)
-
-;;; functions
-
+;;; utility functions
 
 (defun noXML-fold-flatten-spec-list (specList)
   "Flattens the SPECLIST `noXML-fold-spec-list such that each element name can be found easily with assoc."
@@ -223,28 +216,8 @@ and <mode-prefix>-fold-macro-spec-list.")
 	(dolist (item (nth 1 set))
 	  (setq flatList (cons (cons item (car set)) flatList)))))))
 
-(defun noXML-where ();; http://www.emacswiki.org/emacs/NxmlMode#toc11
-  "Display the hierarchy of XML elements the point is on as a path."
-  (interactive)
-  (let ((path nil))
-    (save-excursion
-      (save-restriction
-	(widen)
-	(while (and (< (point-min) (point)) ;; Doesn't error if point is at beginning of buffer
-		    (condition-case nil
-			(progn
-			  (nxml-backward-up-element) ; always returns nil
-			  t)
-		      (error nil)))
-	  (setq path (cons (concat (xmltok-start-tag-local-name) (noXML-element-attribute-get-value (point) "xml:id" "[" "]")) path)))
-	(if (called-interactively-p t)
-	    (message "/%s" (mapconcat 'identity path "/"))
-	  (format "/%s" (mapconcat 'identity path "/")))))))
-
-(defun noXML-element-attribute-get-value (position name &optional prefix postfix)
-  "Find the value of the attribute at POSITION with name NAME"
-  (save-excursion
-    (goto-char position)
+(defun noXML-element-attribute-get-value (name &optional prefix postfix)
+  "Find the value of the last parsed element's attribute NAME."
     (let (
 	  (atts (or xmltok-attributes xmltok-namespace-attributes))
 	  result
@@ -252,40 +225,13 @@ and <mode-prefix>-fold-macro-spec-list.")
 	  (postfix (or postfix ""))
 	  )
       (while atts
-	;; xmltok-attribute-name-start',
-	;; `xmltok-attribute-name-colon', `xmltok-attribute-name-end',
-	;; `xmltok-attribute-value-start', `xmltok-attribute-value-end',
-	;; `xmltok-attribute-raw-normalized-value', `xmltok-attribute-refs'.
 	(let* ((attribute (car atts))
 	       (name-start (xmltok-attribute-name-start attribute)))
 	  (if (string= name (buffer-substring-no-properties (xmltok-attribute-name-start attribute) (xmltok-attribute-name-end attribute)))
 	      (setq result (buffer-substring-no-properties (xmltok-attribute-value-start attribute) (xmltok-attribute-value-end attribute)))
 	    t)
-	  (if result
-	      (setq atts nil)
-	    (setq atts (cdr atts)))
-	  )
-      )
-      (concat-all-or-none (list prefix result postfix))
-      )))
-
-;; (defun noXML-find-element-start (position)
-;;   "Search for the next opening element near position (searches backwards, unless we're on an opening tag).
-
-;; There are three options: position is on/in a start tag, on/in an
-;; end tag, or somewhere else.
-
-;; See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning/end-of-element)
-;; "
-;;   ;; go back and return the point we arrived at
-;;   (save-excursion
-;;     (goto-char position)
-;;     (if (looking-at "<[^/!]");; don't be annoying if we're on an opening "<"
-;; 	(point)
-;;       (progn
-;; 	(nxml-backward-up-element)
-;; 	(point)))))
-
+	  (if result (setq atts nil) (setq atts (cdr atts)))))
+      (if result (concat prefix result postfix) nil)))
 
 (defun noXML-find-element-start (position)
   "Returns starting position of the enclosing element.
@@ -294,9 +240,7 @@ If point is in data, comment, or closing tag, returns position of the opening ta
 
 If point is in empty element, returns start of that element.
 
-See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning/end-of-element)
-"
-  ;; go back and return the point we arrived at
+See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning/end-of-element)."
   (interactive "d")
   (save-excursion
     (let((nxml-sexp-element-flag nil))
@@ -392,10 +336,6 @@ overlays."
       (overlay-put noxmloverlay 'category 'noXML-fold)
 	)))
 
-
-(defgroup noXML-fold nil
-  "Fold xml elements macros."
-  :group 'nXML)
 
 (defun noXML-render-first-child (position)
   "Render an element by picking out the content of its first element. 
@@ -544,7 +484,7 @@ Useful for stuff like <lg><l/><l/> etc.
 (defun noXML-fold-remove-overlays (overlays)
   "Remove all overlays set by noXML-fold in OVERLAYS.
 Return non-nil if a removal happened, nil
-otherwise. Cf. TeX-fold-remove-overlays."
+otherwise. Cf. `TeX-fold-remove-overlays'."
   (let (found)
     (while overlays
       (when (eq (overlay-get (car overlays) 'category) 'noXML-fold)
@@ -650,7 +590,7 @@ TYPE specifies the type of item and can be one of the symbols
 ELEMENTPOSITIONS specifies where the element starts and ends (or start and end of opening and closing element of block elements), and DEPTH
 specifies the depth in the document tree (if not supplied, we try
 to find out).  Return non-nil if an item was found and folded,
-nil otherwise. Based on TeX-fold-item."
+nil otherwise. Based on `TeX-fold-item'."
   (save-excursion
     (let* (
 	   (item-start 
@@ -815,7 +755,7 @@ Remove the respective properties from the overlay OV."
 
 (defun noXML-fold-hide-item (ovs)
   "Hide a single inline or block item.
-That means, put respective properties onto overlay OV. Based on TeX-fold-hide-item."
+That means, put respective properties onto overlay OV. Based on `TeX-fold-hide-item'."
   (dolist (ov ovs)
   (let* ((ov-start (overlay-start ov))
 	 (ov-end (overlay-end ov))
@@ -837,8 +777,7 @@ That means, put respective properties onto overlay OV. Based on TeX-fold-hide-it
 		       (nxml-token-before);; reset scan state
 		       result;; show result
 		       ))
-		    (t (or (noXML-fold-macro-nth-arg spec ov-start ov-end)
-			   "[Error: No content found]"))))
+		    (t "[Error: No content found]")))
 	 (display-string (if (listp computed) (car computed) computed))
 	 (face (when (listp computed) (cadr computed))))
     ;; Cater for zero-length display strings.
@@ -883,7 +822,7 @@ no folded content but an inline  or block element, fold it."
 	  ((noXML-fold-region (region-beginning) (region-end)) (message "Folded element."))
 	  ))
 	((noXML-fold-clearout-item) (message "Unfolded item."))
-	((noXML-fold-region (noXML-find-element-start (point)) (noXML-find-element-end (point))) (message "Folded item."))))
+	((noXML-fold-visible) (message "Folded window."))))
 
 (defun noXML-make-overlay-visible (position)
   (interactive "d");; interactive, with the point of the mark as an integer
@@ -929,56 +868,55 @@ no folded content but an inline  or block element, fold it."
 ;; 	(when success (throw 'success nil))))
 ;;     spec))
 
-(defun noXML-fold-macro-nth-arg (n macro-start &optional macro-end delims)
-  "Return a property list of the argument number N of a macro.
-The start of the macro to examine is given by MACRO-START, its
-end optionally by MACRO-END.  With DELIMS the type of delimiters
-can be specified as a cons cell containing the opening char as
-the car and the closing char as the cdr.  The chars have to have
-opening and closing syntax as defined in
-`TeX-search-syntax-table'.
+;; (defun noXML-fold-macro-nth-arg (n macro-start &optional macro-end delims)
+;;   "Return a property list of the argument number N of a macro.
+;; The start of the macro to examine is given by MACRO-START, its
+;; end optionally by MACRO-END.  With DELIMS the type of delimiters
+;; can be specified as a cons cell containing the opening char as
+;; the car and the closing char as the cdr.  The chars have to have
+;; opening and closing syntax as defined in
+;; `TeX-search-syntax-table'.
 
-The first item in the returned list is the string specified in
-the argument, the second item may be a face if the argument
-string was fontified.  In Emacs the string holds text properties
-as well, so the second item is always nil.  In XEmacs the string
-does not enclose any faces, so these are given in the second item
-of the resulting list."
-  (save-excursion
-    (let* ((macro-end (or macro-end
-					  (noXML-find-element-end macro-start)))
-	   (open-char (if delims (car delims) ?<))
-	   (open-string (char-to-string open-char))
-	   (close-char (if delims (cdr delims) ?>))
-	   (close-string (char-to-string close-char))
-	   content-start content-end)
-      (goto-char macro-start)
-      (if (condition-case nil
-	      (progn
-		(while (> n 0)
-		  (skip-chars-forward (concat "^" open-string) macro-end)
-		  (when (= (point) macro-end)
-		    (error nil))
-		  (setq content-start (progn
-					(skip-chars-forward
-					 (concat open-string " \t"))
-					(point)))
-		  (noXML-find-element-end macro-start)
-		  (setq content-end (save-excursion
-				      (backward-char)
-				      (skip-chars-backward " \t")
-				      (point)))
-		  (setq n (1- n)))
-		t)
-	    (error nil))
-	  (list (noXML-fold-buffer-substring content-start content-end)
-		(when (and (featurep 'xemacs)
-			   (extent-at content-start))
-		  ;; A glyph in XEmacs does not seem to be able to hold more
-		  ;; than one face, so we just use the first one we get.
-		  (car (extent-property (extent-at content-start) 'face))))
-	nil))))
-
+;; The first item in the returned list is the string specified in
+;; the argument, the second item may be a face if the argument
+;; string was fontified.  In Emacs the string holds text properties
+;; as well, so the second item is always nil.  In XEmacs the string
+;; does not enclose any faces, so these are given in the second item
+;; of the resulting list."
+;;   (save-excursion
+;;     (let* ((macro-end (or macro-end
+;; 					  (noXML-find-element-end macro-start)))
+;; 	   (open-char (if delims (car delims) ?<))
+;; 	   (open-string (char-to-string open-char))
+;; 	   (close-char (if delims (cdr delims) ?>))
+;; 	   (close-string (char-to-string close-char))
+;; 	   content-start content-end)
+;;       (goto-char macro-start)
+;;       (if (condition-case nil
+;; 	      (progn
+;; 		(while (> n 0)
+;; 		  (skip-chars-forward (concat "^" open-string) macro-end)
+;; 		  (when (= (point) macro-end)
+;; 		    (error nil))
+;; 		  (setq content-start (progn
+;; 					(skip-chars-forward
+;; 					 (concat open-string " \t"))
+;; 					(point)))
+;; 		  (noXML-find-element-end macro-start)
+;; 		  (setq content-end (save-excursion
+;; 				      (backward-char)
+;; 				      (skip-chars-backward " \t")
+;; 				      (point)))
+;; 		  (setq n (1- n)))
+;; 		t)
+;; 	    (error nil))
+;; 	  (list (noXML-fold-buffer-substring content-start content-end)
+;; 		(when (and (featurep 'xemacs)
+;; 			   (extent-at content-start))
+;; 		  ;; A glyph in XEmacs does not seem to be able to hold more
+;; 		  ;; than one face, so we just use the first one we get.
+;; 		  (car (extent-property (extent-at content-start) 'face))))
+;; 	nil))))
 
 (defun noXML-fold-overfull-p (ov-start ov-end display-string)
   "Return t if an overfull line will result after adding an overlay.
@@ -1001,7 +939,6 @@ string DISPLAY-STRING."
 		ov-end))
 	  (current-fill-column))))
   
-
 (defun noXML-fold-buffer-substring (start end)
   "Return the contents of buffer from START to END as a string.
 Like `buffer-substring' but copy overlay display strings as well."
@@ -1044,20 +981,48 @@ Like `buffer-substring' but copy overlay display strings as well."
       result)))
 
 
+;; not strictly useful for folding
+(defun noXML-where (&optional attribute)
+  "Display the hierarchy of XML elements the point is on as a path.
+
+Following a suggestion from http://www.emacswiki.org/emacs/NxmlMode#toc11.
+"
+  (interactive)
+  (let (path)
+    (save-excursion
+      (save-restriction
+	(widen)
+	(while (and (< (point-min) (point)) ;; Doesn't error if point is at beginning of buffer
+		    (condition-case nil
+			(progn
+			  (nxml-backward-up-element) ; always returns nil
+			  t)
+		      (error nil)))
+	  (setq path (cons (concat (xmltok-start-tag-local-name)
+				   (if attribute
+				       (noXML-element-attribute-get-value attribute "[" "]")
+				     "")) 
+			   path)))
+	(if (called-interactively-p t)
+	    (message "/%s" (mapconcat 'identity path "/"))
+	  (format "/%s" (mapconcat 'identity path "/")))))))
+
+
+
+
 ;;; load everything as minor mode
 (define-minor-mode noXML-fold-mode
-  "Minor mode for hiding and revealing macros and environments.
+  "Minor mode for hiding and revealing XML tags.
 
 Called interactively, with no prefix argument, toggle the mode.
 With universal prefix ARG (or if ARG is nil) turn mode on.
 With zero or negative ARG turn mode off."
   nil nil (list (cons noXML-fold-command-prefix noXML-fold-keymap))
-  (if noXML-fold-mode
+  (if (and noXML-fold-mode (string-equal "nxml-mode" major-mode))
       (progn
 	(set 'nxml-sexp-element-flag nil);; functions depend on this!
 	(set (make-local-variable 'search-invisible) t)
 	(set (make-local-variable 'noXML-fold-spec-list-internal) nil)
-	(add-hook 'after-change-functions 'noXML-set-input-method t t)
 	;; (setq-default noXML-fold-spec-list-internal nil)
 	(add-hook 'post-command-hook 'noXML-fold-post-command t t)
 	;; (add-hook 'noXML-fill-newline-hook 'noXML-fold-update-at-point nil t)
@@ -1072,7 +1037,6 @@ With zero or negative ARG turn mode off."
 	(set (intern "noXML-fold-spec-list-internal") (noXML-fold-flatten-spec-list (symbol-value (intern "noXML-fold-spec-list")))))
     (kill-local-variable 'search-invisible)
     (kill-local-variable 'noXML-fold-spec-list-internal)
-    (remove-hook 'after-change-functions 'noXML-set-input-method t)
     (remove-hook 'post-command-hook 'noXML-fold-post-command t)
     ;; (remove-hook 'LaTeX-fill-newline-hook 'noXML-fold-update-at-point t)
     (noXML-fold-clearout-buffer))
