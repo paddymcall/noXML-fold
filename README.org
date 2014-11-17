@@ -1,0 +1,13 @@
+#+Title: noXML-fold-mode
+
+This is a minor mode that tries to enable useful folding for XML
+files, copying a lot from AUCTeX's tex-fold.el. It builds on
+nxml-mode, and will probably break horribly if it is not the
+major-mode.
+
+The most useful entry points are `noXML-fold-dwim', and
+`noXML-fold-region'.
+
+Since this mode uses overlays, it does *not* scale: for very long or
+deeply nested XML structures, you should only fold what's within view
+(`noXML-fold-visible'), or make use of `narrow-to-region'.
