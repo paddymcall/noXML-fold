@@ -5,7 +5,7 @@ files, copying a lot from AUCTeX's tex-fold.el. It builds on
 nxml-mode, and will probably break horribly if it is not the
 major-mode.
 
-* Quickstart
+** Quickstart
 
 1) Get the repository:
    #+BEGIN_SRC 
@@ -13,7 +13,7 @@ major-mode.
    #+END_SRC
 2) Edit your ~/.emacs:
    #+BEGIN_SRC 
-   (add-to-list 'load-path "/home/beta/webstuff/emacs-stuff/noXML-fold")
+   (add-to-list 'load-path "/some_path_you_like")
    (add-hook 'nxml-mode-hook (lambda () (require 'noxml-fold)))
    #+END_SRC
 3) Then try to open an xml file, make sure you're in nxml-mode, and
@@ -23,7 +23,7 @@ The most useful entry points are `noXML-fold-dwim', and
 `noXML-fold-region'. For smaller files, you can also try
 `noXML-fold-buffer'.
 
-* Limitations
+** Limitations
 
 Since this mode uses overlays, it does *not* scale: for very long or
 deeply nested XML structures, you should only fold what's within view
