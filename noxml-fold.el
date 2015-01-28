@@ -1,6 +1,6 @@
 ;; noxml-fold.el --- Fold XML elements.
 
-;; Copyright (C) 2014 Patrick McAllister
+;; Copyright (C) 2014--2015 Patrick McAllister
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -17,9 +17,9 @@
 
 ;; Comments:
 
-;; This is a minor mode that tries to enable useful folding for XML
-;; files, copying a lot from AUCTeX's tex-fold.el. It presupposes that
-;; nxml-mode is the major-mode.
+;; This is an Emacs minor mode that tries to enable useful folding for
+;; XML files, copying a lot from AUCTeX's tex-fold.el. It presupposes
+;; that nxml-mode is the major-mode.
 
 ;; The most useful entry points for users are `noXML-fold-dwim', and
 ;; `noXML-fold-region'.
@@ -62,7 +62,7 @@ If this matches, it's considered a block element. See `noXML-is-inline'."
   )
 
 (defcustom noXML-toggle-input-method t
-  "If true, then I'll change the input-method after you type any > or <."
+  "If true, then I'll change the input-method after you type > or <. Not yet implemented, though."
   :type 'boolean 
   :group 'noXML-fold)
 
@@ -1043,4 +1043,4 @@ With zero or negative ARG turn mode off."
   ;; (noXML-set-mode-name)
   )
 
-(provide 'noXML-fold)
+(provide 'noxml-fold)
