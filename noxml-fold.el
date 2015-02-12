@@ -1019,7 +1019,7 @@ Following a suggestion from http://www.emacswiki.org/emacs/NxmlMode#toc11.
 Called interactively, with no prefix argument, toggle the mode.
 With universal prefix ARG (or if ARG is nil) turn mode on.
 With zero or negative ARG turn mode off."
-  nil nil (list (cons noXML-fold-command-prefix noXML-fold-keymap))
+  nil " noXML" (list (cons noXML-fold-command-prefix noXML-fold-keymap))
   (if (and noXML-fold-mode (string-equal "nxml-mode" major-mode))
       (progn
 	(set 'nxml-sexp-element-flag nil);; functions depend on this!
