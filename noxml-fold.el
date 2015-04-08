@@ -507,9 +507,9 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
       (xmltok-start-tag-local-name))))
 
 (defun noXML-fold-visible ()
-  "Fold stuff in the current window as best we can."
+  "Fold what's approximately in the current window as best we can."
   (interactive)
-  (noXML-fold-region (window-start) (window-end)))
+  (noXML-fold-region (max (point-min) (- (window-start) 1000)) (min (point-max) (+ (window-end) 1000))))
 
 (defun noXML-fold-region (start end)
   "Fold all complete items in region from START to END."
