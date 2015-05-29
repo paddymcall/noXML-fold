@@ -269,6 +269,7 @@ See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning
   (interactive "d")
   (save-excursion
     (let (
+	  (nxml-sexp-element-flag nil)
 	  (start-element (noXML-find-element-start position))
 	  end-of-end-tag
 	  xmltok-start)
@@ -303,6 +304,7 @@ of surrounding overlays and higher than the maximum of enclosed
 overlays."
   (save-excursion
     (let ((ov-depth 0)
+	  (nxml-sexp-element-flag nil)
 	  (factor noXML-overlay-priority-step)
 	  (type (or type (if (progn (goto-char start) (nxml-token-after) (noXML-is-inline))
 			     'inline
@@ -345,9 +347,10 @@ overlays."
 Useful for stuff like <app><lem>, or <choice><sic>.
 "
   (let* (
-	(start (noXML-find-element-start position))
-	(end (noXML-find-element-end start))
-	(content "[no content found]"))
+	 (nxml-sexp-element-flag nil)
+	 (start (noXML-find-element-start position))
+	 (end (noXML-find-element-end start))
+	 (content "[no content found]"))
     (save-excursion
       (progn
 	(goto-char start)
@@ -386,6 +389,7 @@ Useful for stuff like <lg><l/><l/> etc.
   (let* (
 	(start (noXML-find-element-start position))
 	(end (noXML-find-element-end start))
+	(nxml-sexp-element-flag nil)
 	(content "[no content found]")
 	name-of-child
 	)
@@ -497,14 +501,15 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
 
 (defun noXML-fold-get-element-name (position)
   "Returns the name of the element POSITION is in, or, if POSITION is on an opening tag, that tag's name."
-  (save-excursion
-    (goto-char position)
-    (if (looking-at "<[^/!]")
-	(nxml-forward-balanced-item))
-    (progn
-      (nxml-scan-element-backward (nxml-token-before) t)
-      (goto-char xmltok-start);; xmltok-start is set by nxml-scan-element-backward
-      (xmltok-start-tag-local-name))))
+  (let ((nxml-sexp-element-flag nil))
+   (save-excursion
+     (goto-char position)
+     (if (looking-at "<[^/!]")
+	 (nxml-forward-balanced-item))
+     (progn
+       (nxml-scan-element-backward (nxml-token-before) t)
+       (goto-char xmltok-start)	;; xmltok-start is set by nxml-scan-element-backward
+       (xmltok-start-tag-local-name)))))
 
 (defun noXML-fold-visible ()
   "Fold what's approximately in the current window as best we can."
@@ -520,6 +525,7 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
 	  ((from-here start)
 	   (to-here end)
 	   (current-relative-depth 0)
+	   (nxml-sexp-element-flag nil)
 	   whackTree;; where we store tag starts and ends
 	   elementVals
 	   )
@@ -644,14 +650,14 @@ nil otherwise. Based on `TeX-fold-item'."
 
 (defun noXML-expression-start-end (position)
   "Find the start and end of an item at POSITION"
-  (save-excursion
-    (let ((position position))
-      (progn
-	(goto-char position)
-	(list (cons
-	       position
-	       (nxml-token-after))))
-	 )))
+  (let ((nxml-sexp-element-flag nil))
+    (save-excursion
+      (let ((position position))
+	(progn
+	  (goto-char position)
+	  (list (cons
+		 position
+		 (nxml-token-after))))))))
 
 (defun noXML-fold-make-help-echo (start end)
   "Return a string to be used as the help echo of folded overlays.
@@ -759,11 +765,12 @@ Remove the respective properties from the overlay OV."
   "Hide a single inline or block item.
 That means, put respective properties onto overlay OV. Based on `TeX-fold-hide-item'."
   (dolist (ov ovs)
-  (let* ((ov-start (overlay-start ov))
-	 (ov-end (overlay-end ov))
-	 (spec (overlay-get ov 'noXML-fold-display-string-spec))
-	 (computed (cond ;; the specification spec can be either a string or a function
-		    ((stringp spec)
+    (let* ((nxml-sexp-element-flag nil)
+	   (ov-start (overlay-start ov))
+	   (ov-end (overlay-end ov))
+	   (spec (overlay-get ov 'noXML-fold-display-string-spec))
+	   (computed (cond ;; the specification spec can be either a string or a function
+		      ((stringp spec)
 		     ;;(noXML-fold-expand-spec spec ov-start ov-end);; yes, not really relevant for xml folding i think
 		     spec
 		     )
@@ -990,7 +997,8 @@ Like `buffer-substring' but copy overlay display strings as well."
 Following a suggestion from http://www.emacswiki.org/emacs/NxmlMode#toc11.
 "
   (interactive)
-  (let (path)
+  (let ((nxml-sexp-element-flag nil)
+	path)
     (save-excursion
       (save-restriction
 	(widen)
@@ -1010,8 +1018,6 @@ Following a suggestion from http://www.emacswiki.org/emacs/NxmlMode#toc11.
 	  (format "/%s" (mapconcat 'identity path "/")))))))
 
 
-
-
 ;;; load everything as minor mode
 (define-minor-mode noXML-fold-mode
   "Minor mode for hiding and revealing XML tags.
@@ -1022,7 +1028,7 @@ With zero or negative ARG turn mode off."
   nil " noXML" (list (cons noXML-fold-command-prefix noXML-fold-keymap))
   (if (and noXML-fold-mode (string-equal "nxml-mode" major-mode))
       (progn
-	(set 'nxml-sexp-element-flag nil);; functions depend on this!
+	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
 	(set (make-local-variable 'search-invisible) t)
 	(set (make-local-variable 'noXML-fold-spec-list-internal) nil)
 	;; (setq-default noXML-fold-spec-list-internal nil)
