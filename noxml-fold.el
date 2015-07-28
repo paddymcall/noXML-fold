@@ -63,6 +63,11 @@ If this matches, it's considered a block element. See `noXML-is-inline'."
   :group 'noXML-fold
   )
 
+(defcustom noXML-block-elements nil
+  "A list of element names that are always considered block elements."
+  :type '(repeat string)
+  :group 'noXML-fold)
+
 (defcustom noXML-toggle-input-method t
   "If true, then I'll change the input-method after you type > or <. Not yet implemented, though."
   :type 'boolean 
@@ -573,13 +578,15 @@ this by adding the element name to `noXML-inline-elements'."
 	   is-inline)
 	(if (member (xmltok-start-tag-local-name) noXML-inline-elements)
 	    t
-	  (if (and xmltok-start (not (eq xmltok-type ())))
-	      (unless (eq xmltok-start (point-min))
-		(progn
-		  (goto-char (+ 2 xmltok-start))
-		  (if (not (looking-back block-regexp  (- xmltok-start 50)))
-		      t
-		    ()))))))))
+	  (if (member (xmltok-start-tag-local-name) noXML-block-elements)
+	      nil
+	    (if (and xmltok-start (not (eq xmltok-type ())))
+		(unless (eq xmltok-start (point-min))
+		  (progn
+		    (goto-char (+ 2 xmltok-start))
+		    (if (not (looking-back block-regexp  (- xmltok-start 50)))
+			t
+		      ())))))))))
 
 
 (defun noXML-fold-buffer ()
