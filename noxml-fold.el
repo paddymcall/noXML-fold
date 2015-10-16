@@ -52,7 +52,9 @@ Set it to zero in order to disable help echos."
 (defcustom noXML-is-not-inline-regexp "^\\s-*<[^/]"
   "A regular expression use to determine whether an element is inline or not.
 
-If this matches, it's considered a block element. See `noXML-is-inline'."
+If this matches, it's considered a block element. See `noXML-is-inline'.
+
+TODO: bad solution this here. See info: (nxml-mode) Paragraphs for a better way to do this (and integrate)."
   :type 'regexp
   :group 'noXML-fold
   )
@@ -82,6 +84,21 @@ overlays between two existing ones.")
   "Force the buffer to be fully fontified by folding it."
   :group 'noXML-fold
   :type 'boolean)
+
+(defcustom noXML-fold-add-to-screen nil
+  "How many chars to search above and below the screen edge when
+trying to fold things.
+
+If you have a <paragraph>...</paragraph>, for example, that stretches over
+10.000 chars, and your screen shows around 4000 chars, and you
+are at the beginning of the <paragraph>, then it will fold the
+whole thing for you only if `noXML-fold-add-to-screen' is >
+6000."
+  :group 'noXML-fold
+  :type 'integer)
+(make-variable-buffer-local 'noXML-fold-add-to-screen)
+
+(setq noXML-fold-add-to-screen 5000)
 
 (defface noXML-fold-folded-face
   '((((class color) (background light))
@@ -516,10 +533,12 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
        (goto-char xmltok-start)	;; xmltok-start is set by nxml-scan-element-backward
        (xmltok-start-tag-local-name)))))
 
-(defun noXML-fold-visible ()
+(defun noXML-fold-visible (&optional around-screen)
   "Fold what's approximately in the current window as best we can."
-  (interactive)
-  (noXML-fold-region (max (point-min) (- (window-start) 1000)) (min (point-max) (+ (window-end) 1000))))
+  (interactive
+   (list (if current-prefix-arg (read-number "How many chars: ") noXML-fold-add-to-screen)))
+  (let ((around-screen (or around-screen noXML-fold-add-to-screen)))
+    (noXML-fold-region (max (point-min) (- (window-start) around-screen)) (min (point-max) (+ (window-end) around-screen)))))
 
 (defun noXML-fold-region (start end)
   "Fold all complete items in region from START to END."
