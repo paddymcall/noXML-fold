@@ -54,14 +54,12 @@ Set it to zero in order to disable help echos."
 
 If this matches, it's considered a block element. See `noXML-is-inline'."
   :type 'regexp
-  :group 'noXML-fold
-  )
+  :group 'noXML-fold)
 
 (defcustom noXML-inline-elements nil
   "A list of element names that are always considered inline."
   :type '(repeat string)
-  :group 'noXML-fold
-  )
+  :group 'noXML-fold)
 
 (defcustom noXML-block-elements nil
   "A list of element names that are always considered block elements."
@@ -288,9 +286,13 @@ See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning
 (defun noXML-fold-make-overlay (ov-start ov-end type display-string-spec priority)
   "Make a noXML-fold overlay extending from OV-START to OV-END.
 TYPE is a symbol which is used to describe the content to hide
-and may be 'inline for inline elements or 'block for block elements.
-DISPLAY-STRING-SPEC is the original specification of the display
-string in the variable `noXML-fold-spec-list' and may be a string or an integer. PRIORITY sets the priority of the item."
+and may be 'inline for inline elements or 'block for block
+elements.  DISPLAY-STRING-SPEC is the original specification of
+the display string in the variable `noXML-fold-spec-list' and may
+be a string or an integer. PRIORITY sets the priority of the
+item.
+
+TODO: review info:nxml-mode#Paragraphs for a different (better?) solution."
   ;; Calculate priority before the overlay is instantiated.  We don't
   ;; want `noXML-overlay-prioritize' to pick up a non-prioritized one.
   (let* (;;(priority (noXML-overlay-prioritize ov-start ov-end type))
