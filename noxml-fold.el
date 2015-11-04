@@ -58,7 +58,8 @@ Set it to zero in order to disable help echos."
 
 If this matches, it's considered a block element. See `noXML-is-inline'.
 
-TODO: bad solution this here. See info: (nxml-mode) Paragraphs for a better way to do this (and integrate)."
+TODO: bad solution this here. See info: (nxml-mode) Paragraphs for a better way to do this (and integrate).
+See also nxml-mode.el::;;; Paragraphs."
   :type 'regexp
   :group 'noXML-fold)
 
