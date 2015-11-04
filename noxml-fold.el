@@ -1,4 +1,4 @@
-;; noxml-fold.el --- Fold away XML things.
+;;; noxml-fold.el --- Fold away XML things.
 
 ;; Copyright (C) 2014--2015 Patrick McAllister
 
@@ -1085,3 +1085,5 @@ With zero or negative ARG turn mode off."
   )
 
 (provide 'noxml-fold)
+
+;;; noxml-fold.el ends here
