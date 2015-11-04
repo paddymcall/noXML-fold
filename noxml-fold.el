@@ -1,6 +1,10 @@
-;; noxml-fold.el --- Fold XML elements.
+;; noxml-fold.el --- Fold away XML things.
 
 ;; Copyright (C) 2014--2015 Patrick McAllister
+
+;; Author: Patrick McAllister <pma@rdorte.org>
+;; Keywords: xml, folding
+;; URL: https://github.com/paddymcall/noXML-fold
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -15,7 +19,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;; Comments:
+;;; Commentary:
 
 ;; This is an Emacs minor mode that tries to enable useful folding for
 ;; XML files, copying a lot from AUCTeX's tex-fold.el. It presupposes
@@ -1047,6 +1051,7 @@ Following a suggestion from http://www.emacswiki.org/emacs/NxmlMode#toc11.
 
 
 ;;; load everything as minor mode
+;;;###autoload
 (define-minor-mode noXML-fold-mode
   "Minor mode for hiding and revealing XML tags.
 
