@@ -85,7 +85,7 @@ overlays between two existing ones.")
   :group 'noXML-fold
   :type 'boolean)
 
-(defcustom noXML-fold-add-to-screen nil
+(defcustom noXML-fold-add-to-screen 5000
   "How many chars to search above and below the screen edge when
 trying to fold things.
 
@@ -96,9 +96,8 @@ whole thing for you only if `noXML-fold-add-to-screen' is >
 6000."
   :group 'noXML-fold
   :type 'integer)
-(make-variable-buffer-local 'noXML-fold-add-to-screen)
 
-(setq noXML-fold-add-to-screen 5000)
+(make-variable-buffer-local 'noXML-fold-add-to-screen)
 
 (defface noXML-fold-folded-face
   '((((class color) (background light))
@@ -537,7 +536,7 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
   "Fold what's approximately in the current window as best we can."
   (interactive
    (list (if current-prefix-arg (read-number "How many chars: ") noXML-fold-add-to-screen)))
-  (let ((around-screen (or around-screen noXML-fold-add-to-screen)))
+  (let ((around-screen (or around-screen noXML-fold-add-to-screen 2000)))
     (noXML-fold-region (max (point-min) (- (window-start) around-screen)) (min (point-max) (+ (window-end) around-screen)))))
 
 (defun noXML-fold-region (start end)
