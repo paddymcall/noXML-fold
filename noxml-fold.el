@@ -32,8 +32,6 @@
 ;; long/deeply nested XML, you should only fold what's within view, or
 ;; make use of `narrow-to-region'.
 
-(provide 'noxml-fold)
-
 (require 'overlay)
 (require 'nxml-mode)
 
