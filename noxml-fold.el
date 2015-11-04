@@ -1,6 +1,10 @@
-;; noxml-fold.el --- Fold XML elements.
+;;; noxml-fold.el --- Fold away XML things.
 
 ;; Copyright (C) 2014--2015 Patrick McAllister
+
+;; Author: Patrick McAllister <pma@rdorte.org>
+;; Keywords: xml, folding
+;; URL: https://github.com/paddymcall/noXML-fold
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -15,7 +19,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;; Comments:
+;;; Commentary:
 
 ;; This is an Emacs minor mode that tries to enable useful folding for
 ;; XML files, copying a lot from AUCTeX's tex-fold.el. It presupposes
@@ -54,16 +58,15 @@ Set it to zero in order to disable help echos."
 
 If this matches, it's considered a block element. See `noXML-is-inline'.
 
-TODO: bad solution this here. See info: (nxml-mode) Paragraphs for a better way to do this (and integrate)."
+TODO: bad solution this here. See info: (nxml-mode) Paragraphs for a better way to do this (and integrate).
+See also nxml-mode.el::;;; Paragraphs."
   :type 'regexp
-  :group 'noXML-fold
-  )
+  :group 'noXML-fold)
 
 (defcustom noXML-inline-elements nil
   "A list of element names that are always considered inline."
   :type '(repeat string)
-  :group 'noXML-fold
-  )
+  :group 'noXML-fold)
 
 (defcustom noXML-block-elements nil
   "A list of element names that are always considered block elements."
@@ -304,9 +307,13 @@ See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning
 (defun noXML-fold-make-overlay (ov-start ov-end type display-string-spec priority)
   "Make a noXML-fold overlay extending from OV-START to OV-END.
 TYPE is a symbol which is used to describe the content to hide
-and may be 'inline for inline elements or 'block for block elements.
-DISPLAY-STRING-SPEC is the original specification of the display
-string in the variable `noXML-fold-spec-list' and may be a string or an integer. PRIORITY sets the priority of the item."
+and may be 'inline for inline elements or 'block for block
+elements.  DISPLAY-STRING-SPEC is the original specification of
+the display string in the variable `noXML-fold-spec-list' and may
+be a string or an integer. PRIORITY sets the priority of the
+item.
+
+TODO: review info:nxml-mode#Paragraphs for a different (better?) solution."
   ;; Calculate priority before the overlay is instantiated.  We don't
   ;; want `noXML-overlay-prioritize' to pick up a non-prioritized one.
   (let* (;;(priority (noXML-overlay-prioritize ov-start ov-end type))
@@ -1044,6 +1051,7 @@ Following a suggestion from http://www.emacswiki.org/emacs/NxmlMode#toc11.
 
 
 ;;; load everything as minor mode
+;;;###autoload
 (define-minor-mode noXML-fold-mode
   "Minor mode for hiding and revealing XML tags.
 
@@ -1077,3 +1085,5 @@ With zero or negative ARG turn mode off."
   )
 
 (provide 'noxml-fold)
+
+;;; noxml-fold.el ends here
