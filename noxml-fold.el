@@ -22,7 +22,7 @@
 ;;; Commentary:
 
 ;; This is an Emacs minor mode that tries to enable useful folding for
-;; XML files, copying a lot from AUCTeX's tex-fold.el. It presupposes
+;; XML files, copying a lot from AUCTeX's tex-fold.el.  It presupposes
 ;; that nxml-mode is the major-mode.
 
 ;; The most useful entry points for users are `noXML-fold-dwim', and
@@ -36,6 +36,8 @@
 (require 'nxml-mode)
 
 ;;; configuration, vars etc.
+
+;;; Code:
 
 (defcustom noXML-fold-unfold-around-mark t
   "Unfold text around the mark, if active."
@@ -52,7 +54,7 @@ Set it to zero in order to disable help echos."
 (make-variable-buffer-local 'noXML-fold-open-spots)
 
 (defcustom noXML-is-not-inline-regexp "^\\s-*<[^/]"
-  "A regular expression use to determine whether an element is inline or not.
+  "A regex for block elements.
 
 If this matches, it's considered a block element. See `noXML-is-inline'.
 
@@ -69,11 +71,6 @@ See also nxml-mode.el::;;; Paragraphs."
 (defcustom noXML-block-elements nil
   "A list of element names that are always considered block elements."
   :type '(repeat string)
-  :group 'noXML-fold)
-
-(defcustom noXML-toggle-input-method t
-  "If true, then I'll change the input-method after you type > or <. Not yet implemented, though."
-  :type 'boolean 
   :group 'noXML-fold)
 
 (defvar noXML-overlay-priority-step 16
@@ -275,7 +272,7 @@ See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning
 	      (nxml-token-after)
 	    (nxml-token-before)))
 	 (nxml-token-before)
-	 (cond 
+	 (cond
 	  ((string-equal xmltok-type "empty-element") t)
 	  ((memq xmltok-type '(data space)) (progn (nxml-scan-element-backward (point) t) xmltok-start))
 	  ((string-equal xmltok-type "start-tag") t);; already evaluated above
@@ -295,7 +292,7 @@ See also: http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html (nxml-beginning
 	  (start-element (noXML-find-element-start position))
 	  end-of-end-tag
 	  xmltok-start)
-      (progn 
+      (progn
 	(setq end-of-end-tag (nxml-scan-element-forward start-element))
 	(if (called-interactively-p 'interactive)
 	    (message "The element ends at char: %d" end-of-end-tag)
@@ -368,7 +365,7 @@ overlays."
 
 
 (defun noXML-render-first-child (position)
-  "Render an element by picking out the content of its first element. 
+  "Render an element by picking out the content of its first element.
 
 Useful for stuff like <app><lem>, or <choice><sic>.
 "
@@ -398,7 +395,7 @@ Useful for stuff like <app><lem>, or <choice><sic>.
 						;; still in effect)
 		  (
 		   (looking-at "<[a-zA-Z0-9]+");; the first element; we'll use its content
-		   (progn 
+		   (progn
 		     (setq content (noXML-get-content (point)));; that's all we wanted, so go to end
 		     (goto-char end)))
 		  (t (setq content "[no sub-element found]");; the default behaviour
@@ -439,7 +436,7 @@ Useful for stuff like <lg><l/><l/> etc.
 						;; the while clause is
 						;; still in effect)
 		  ((looking-at "<[a-zA-Z0-9]+");; an element; let's have a closer look
-		   (progn 
+		   (progn
 		     (if (not name-of-child);; if we haven't found a child yet
 			 (progn (setq name-of-child (noXML-fold-get-element-name (point));; set its name
 			   content (noXML-get-content (point)));; and use its content
@@ -547,9 +544,9 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
 (defun noXML-fold-region (start end)
   "Fold all complete items in region from START to END."
   (interactive "r")
-  (save-excursion 
+  (save-excursion
     (save-restriction
-      (let 
+      (let
 	  ((from-here start)
 	   (to-here end)
 	   (current-relative-depth 0)
@@ -557,7 +554,7 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
 	   whackTree;; where we store tag starts and ends
 	   elementVals
 	   )
-	(progn 
+	(progn
 	  (narrow-to-region from-here to-here)
 	  (goto-char to-here)
 	;; walk through the region backwards, folding every proper element
@@ -571,11 +568,11 @@ otherwise. Cf. `TeX-fold-remove-overlays'."
 		    (progn
 		      (add-to-list 'whackTree (cons xmltok-start (point)));; remember the current tag's start and end point
 		      (setq elementVals ;; we need this for folding below
-			    (cond 
+			    (cond
 			     ((equal xmltok-type 'start-tag) (cons (pop whackTree) (pop whackTree)
-								   ;; cut out this element's start and end cons cell from the whackTree, that is, the first two elements.						
+								   ;; cut out this element's start and end cons cell from the whackTree, that is, the first two elements.
 								   ))
-			     ((equal xmltok-type 'empty-element) 
+			     ((equal xmltok-type 'empty-element)
 			      (pop whackTree)
 			      )
 			     ))
@@ -596,7 +593,7 @@ space or nothing to the start of the line (see
 `noXML-is-not-inline-regexp' for the regex used). You can override
 this by adding the element name to `noXML-inline-elements'."
   (save-excursion
-      (let 
+      (let
 	  ((block-regexp (or noXML-is-not-inline-regexp "^\\s-*<[^/]"))
 	   is-inline)
 	(if (member (xmltok-start-tag-local-name) noXML-inline-elements)
@@ -631,7 +628,7 @@ to find out).  Return non-nil if an item was found and folded,
 nil otherwise. Based on `TeX-fold-item'."
   (save-excursion
     (let* (
-	   (item-start 
+	   (item-start
 	    (if (listp (car elementPositions))
 		(car (car elementPositions))
 	      (car elementPositions))
@@ -648,7 +645,7 @@ nil otherwise. Based on `TeX-fold-item'."
 	       (starts-and-ends ;; a list of the start and end of each thing that should be overlayed here
 		(if (and (not (eq xmltok-type 'empty-element)) (eq type 'block))
 		    (list
-		     (cons item-start 
+		     (cons item-start
 			   (cdr (car elementPositions))
 			   )
 		     (cons
@@ -656,7 +653,7 @@ nil otherwise. Based on `TeX-fold-item'."
 		      item-end))
 		  (list (cons item-start item-end))))
 	       (display-string-spec ;; what to show when folding
-		(or 
+		(or
 		 (cdr (assoc item-name noXML-fold-spec-list-internal))
 		 (if noXML-fold-unspec-use-name
 			(concat "[" item-name "]")
@@ -666,11 +663,11 @@ nil otherwise. Based on `TeX-fold-item'."
 	       (ovs ;; set up a list of the overlays
 		 (mapcar
 		  (lambda (start-and-end)
-		    (noXML-fold-make-overlay 
+		    (noXML-fold-make-overlay
 		     (car start-and-end)
 		     (cdr start-and-end)
-		     type display-string-spec 
-		     (if depth 
+		     type display-string-spec
+		     (if depth
 			 (* depth noXML-overlay-priority-step)
 		       ;; recalculate overlay depth if not supplied
 		       (noXML-overlay-prioritize (car start-and-end) (cdr start-and-end)))
@@ -693,7 +690,7 @@ nil otherwise. Based on `TeX-fold-item'."
   "Return a string to be used as the help echo of folded overlays.
 The text between START and END will be used for this but cropped
 to the length defined by `noXML-fold-help-echo-max-length'.  Line
-breaks will be replaced by spaces. This is also what gets shown when 
+breaks will be replaced by spaces. This is also what gets shown when
 the mouse is on the point."
   (let* ((spill (+ start noXML-fold-help-echo-max-length))
 	 (lines (split-string (buffer-substring start (min end spill)) "\n"))
@@ -765,7 +762,7 @@ Remove the respective properties from the overlay OV."
 				    'backward-char 'forward-char
 				    'mouse-set-point)))
 		;; Open new overlays.
-		(dolist (ol (nconc (when ;; we use either the overalays in the region 
+		(dolist (ol (nconc (when ;; we use either the overalays in the region
 				       (and noXML-fold-unfold-around-mark
 					      (boundp 'mark-active)
 					      mark-active)
@@ -855,7 +852,7 @@ If there is folded content, unfold it.  If there is a marked
 region, fold all configured content in this region.  If there is
 no folded content but an inline  or block element, fold it."
   (interactive)
-  (cond ((use-region-p) 
+  (cond ((use-region-p)
 	 (cond
 	  ((noXML-fold-clearout-region (region-beginning) (region-end)) (message "Unfolded region."))
 	  ((noXML-fold-region (region-beginning) (region-end)) (message "Folded element."))
@@ -1041,7 +1038,7 @@ Following a suggestion from http://www.emacswiki.org/emacs/NxmlMode#toc11.
 	  (setq path (cons (concat (xmltok-start-tag-local-name)
 				   (if attribute
 				       (noXML-element-attribute-get-value attribute "[" "]")
-				     "")) 
+				     ""))
 			   path)))
 	(if (called-interactively-p t)
 	    (message "/%s" (mapconcat 'identity path "/"))
