@@ -237,25 +237,38 @@ and <mode-prefix>-fold-macro-spec-list.")
 	(dolist (item (nth 1 set))
 	  (setq flatList (cons (cons item (car set)) flatList)))))))
 
-(defun noXML-element-attribute-get-value (name &optional prefix postfix)
+(defun noXML-element-attribute-get-value (name &optional as-string)
   "Find the value of the last parsed element's attribute NAME.
 
-The strings PREFIX and POSTFIX are put around the returned
-value."
-    (let (
-	  (atts (or xmltok-attributes xmltok-namespace-attributes))
+If NAME is a string, look for that attribute.
+
+If NAME is a list of strings, look for all those attributes.
+
+If NAME is anything else, return all attributes.
+
+If attributes are found, return an alist of the elements, like
+'((attname . value) (attname2 . value)).  If AS-STRING is not
+nil, return the attributes and values as a string."
+    (let ((atts (or xmltok-attributes xmltok-namespace-attributes))
 	  result
-	  (prefix (or prefix ""))
-	  (postfix (or postfix ""))
-	  )
+	  (names (cond
+		  ((stringp name) (list name))
+		  ((listp name) (mapcar (lambda (x) (if (stringp x) x)) name))
+		  (t t))))
       (while atts
 	(let* ((attribute (car atts))
-	       (name-start (xmltok-attribute-name-start attribute)))
-	  (if (string= name (buffer-substring-no-properties (xmltok-attribute-name-start attribute) (xmltok-attribute-name-end attribute)))
-	      (setq result (buffer-substring-no-properties (xmltok-attribute-value-start attribute) (xmltok-attribute-value-end attribute)))
-	    t)
-	  (if result (setq atts nil) (setq atts (cdr atts)))))
-      (if result (concat prefix result postfix) nil)))
+	       (name-start (xmltok-attribute-name-start attribute))
+	       (att-name (buffer-substring-no-properties (xmltok-attribute-name-start attribute) (xmltok-attribute-name-end attribute)))
+	       (att-value (buffer-substring-no-properties (xmltok-attribute-value-start attribute) (xmltok-attribute-value-end attribute))))
+	  (when (or (eq t names) (member att-name names))
+	    (push (cons att-name att-value) result))
+	  (setq atts (cdr atts))))
+      (if (and as-string result)
+	  (let ((result-string ""))
+	    (dolist (item result)
+	      (setf result-string (format "@%s=\"%s\" | " (car item) (cdr item))))
+	    (substring result-string 0 (- (length result-string) 3)))
+	  result)))
 
 (defun noXML-find-element-start (position)
   "Find start of the element around POSITION.
@@ -1036,18 +1049,22 @@ Like `buffer-substring' but copy overlay display strings as well."
 
 
 ;; not strictly useful for folding
-(defun noXML-where-am-i (&optional attribute)
+(defun noXML-where-am-i (&optional attributes)
   "Show current position as a path of elements.
 
-ATTRIBUTE should be the name of an attribute to show (e.g.,
-'xml:id).  If specified, include its values in the path.
+If ATTRIBUTES is a list (e.g., '(xml:id xml:lang type)), the
+returned path will contain the values for those attributes, when
+applicable.
+
+If ATTRIBUTES is not nil and not a list, show all attributes.
 
 Follows a suggestion from
-http://www.emacswiki.org/emacs/NxmlMode#toc11.
-
-TODO: make attribute a list or boolean, and bind it to prefix
-arguments."
-  (interactive)
+http://www.emacswiki.org/emacs/NxmlMode#toc11."
+  (interactive
+   (let (atts)
+     (when current-prefix-arg
+       (setq atts (split-string (read-string "List attributes to show, or leave empty to show all: " )))
+       (list (or atts t)))))
   (let ((nxml-sexp-element-flag nil)
 	path)
     (save-excursion
@@ -1060,9 +1077,7 @@ arguments."
 			  t)
 		      (error nil)))
 	  (setq path (cons (concat (xmltok-start-tag-local-name)
-				   (if attribute
-				       (noXML-element-attribute-get-value attribute "[" "]")
-				     ""))
+				   (format "%s" (or (noXML-element-attribute-get-value attributes 'as-string) "")))
 			   path)))
 	(if (called-interactively-p t)
 	    (message "/%s" (mapconcat 'identity path "/"))
