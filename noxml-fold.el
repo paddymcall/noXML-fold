@@ -4,7 +4,7 @@
 
 ;; Author: Patrick McAllister <pma@rdorte.org>
 ;; Keywords: xml, folding
-;; URL: https://github.com/paddymcall/noXML-fold
+;; URL: https://github.com/paddymcall/noxml-fold
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@
 ;; XML files, copying a lot from AUCTeX's tex-fold.el.  It presupposes
 ;; that nxml-mode is the major-mode.
 
-;; The most useful entry points for users are `noXML-fold-dwim', and
-;; `noXML-fold-region'.
+;; The most useful entry points for users are `noxml-fold-dwim', and
+;; `noxml-fold-region'.
 
 ;; Since this mode uses overlays, it does *not* scale: for very
 ;; long/deeply nested XML, you should only fold what's within view, or
@@ -39,66 +39,66 @@
 
 ;;; Code:
 
-(defcustom noXML-fold-unfold-around-mark t
+(defcustom noxml-fold-unfold-around-mark t
   "Unfold text around the mark, if active."
   :type 'boolean
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defcustom noXML-fold-help-echo-max-length 70
+(defcustom noxml-fold-help-echo-max-length 70
   "Maximum length of help echo message for folded overlays.
 Set it to zero in order to disable help echos."
   :type 'integer
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defvar noXML-fold-open-spots nil)
-(make-variable-buffer-local 'noXML-fold-open-spots)
+(defvar noxml-fold-open-spots nil)
+(make-variable-buffer-local 'noxml-fold-open-spots)
 
 
 ;; TODO: bad solution this here. See info: (nxml-mode) Paragraphs
 ;; for a better way to do this (and integrate).  See also
 ;; nxml-mode.el::;;; Paragraphs.
-(defcustom noXML-is-not-inline-regexp "^\\s-*<[^/]"
+(defcustom noxml-is-not-inline-regexp "^\\s-*<[^/]"
   "A regex for block elements.
 
 If this matches, it's considered a block element.  See
-`noXML-is-inline'."
+`noxml-is-inline'."
   :type 'regexp
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defcustom noXML-inline-elements nil
+(defcustom noxml-inline-elements nil
   "A list of element names that are always considered inline."
   :type '(repeat string)
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defcustom noXML-block-elements nil
+(defcustom noxml-block-elements nil
   "A list of element names that are always considered block elements."
   :type '(repeat string)
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defvar noXML-overlay-priority-step 16
+(defvar noxml-overlay-priority-step 16
   "Numerical difference of priorities between nested overlays.
 The step should be big enough to allow setting a priority for new
 overlays between two existing ones.")
 
-(defcustom noXML-fold-force-fontify t
+(defcustom noxml-fold-force-fontify t
   "Force the buffer to be fully fontified by folding it."
-  :group 'noXML-fold
+  :group 'noxml-fold
   :type 'boolean)
 
-(defcustom noXML-fold-add-to-screen 5000
+(defcustom noxml-fold-add-to-screen 5000
   "How many chars outside the screen to fold.
 
 If you have a <paragraph>...</paragraph>, for example, that
 stretches over 10.000 chars, and your screen shows around 4000
 chars, and you are at the beginning of the <paragraph>, then it
 will fold the whole thing for you only if
-`noXML-fold-add-to-screen' is > 6000."
-  :group 'noXML-fold
+`noxml-fold-add-to-screen' is > 6000."
+  :group 'noxml-fold
   :type 'integer)
 
-(make-variable-buffer-local 'noXML-fold-add-to-screen)
+(make-variable-buffer-local 'noxml-fold-add-to-screen)
 
-(defface noXML-fold-folded-face
+(defface noxml-fold-folded-face
   '((((class color) (background light))
      (:foreground "SlateBlue"))
     (((class color) (background dark))
@@ -109,12 +109,12 @@ will fold the whole thing for you only if
      (:foreground "LightGray"))
     (t (:slant italic)))
   "Face for the display string of folded content."
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defvar noXML-fold-folded-face 'noXML-fold-folded-face
+(defvar noxml-fold-folded-face 'noxml-fold-folded-face
   "Face for the display string of folded content.")
 
-(defface noXML-fold-unfolded-face
+(defface noxml-fold-unfolded-face
   '((((class color) (background light))
      (:background "#f2f0fd"))
     (((class color) (background dark))
@@ -125,67 +125,67 @@ will fold the whole thing for you only if
      (:background "DimGray"))
     (t (:inverse-video t)))
   "Face for folded content when it is temporarily opened."
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defvar noXML-fold-unfolded-face 'noXML-fold-unfolded-face
+(defvar noxml-fold-unfolded-face 'noxml-fold-unfolded-face
   "Face for folded content when it is temporarily opened.")
 
 
-(defvar noXML-fold-ellipsis "..."
+(defvar noxml-fold-ellipsis "..."
   "String used as display string for overlays instead of a zero-length string.")
 
-(defcustom noXML-fold-command-prefix "\C-c\C-o\C-f"
-  "Prefix key to use for commands in noXML-fold mode.
-The value of this variable is checked as part of loading noXML-fold mode.
+(defcustom noxml-fold-command-prefix "\C-c\C-o\C-f"
+  "Prefix key to use for commands in noxml-fold mode.
+The value of this variable is checked as part of loading noxml-fold mode.
 After that, changing the prefix key requires manipulating keymaps."
   :type 'string
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defcustom noXML-fold-auto nil
+(defcustom noxml-fold-auto nil
   "If non-nil, fold macros automatically.  Leave this at nil for the time being!!"
-  :group 'noXML-fold
+  :group 'noxml-fold
   :type 'boolean)
 
-(defvar noXML-fold-keymap
+(defvar noxml-fold-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map "\C-o" 'noXML-fold-dwim)
-    (define-key map "\C-b" 'noXML-fold-buffer)
-    (define-key map "\C-r" 'noXML-fold-region)
-    (define-key map "\C-m" 'noXML-fold-macro)
-    (define-key map "\C-e" 'noXML-fold-env)
-    (define-key map "b"    'noXML-fold-clearout-buffer)
-    (define-key map "r"    'noXML-fold-clearout-region)
-    (define-key map "i"    'noXML-fold-clearout-item)
+    (define-key map "\C-o" 'noxml-fold-dwim)
+    (define-key map "\C-b" 'noxml-fold-buffer)
+    (define-key map "\C-r" 'noxml-fold-region)
+    (define-key map "\C-m" 'noxml-fold-macro)
+    (define-key map "\C-e" 'noxml-fold-env)
+    (define-key map "b"    'noxml-fold-clearout-buffer)
+    (define-key map "r"    'noxml-fold-clearout-region)
+    (define-key map "i"    'noxml-fold-clearout-item)
     map))
 
-(defgroup noXML-fold nil
+(defgroup noxml-fold nil
   "Fold xml elements."
   :group 'languages)
 
-(defcustom noXML-fold-unspec-block-display-string "[bl]"
+(defcustom noxml-fold-unspec-block-display-string "[bl]"
   "Display string for unspecified environments.
 This string will be displayed if a single environment is being
-hidden which is not specified in `noXML-fold-env-spec-list'."
+hidden which is not specified in `noxml-fold-env-spec-list'."
   :type '(string)
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defcustom noXML-fold-unspec-inline-display-string "[inl]"
+(defcustom noxml-fold-unspec-inline-display-string "[inl]"
   "Display string for unspecified macros.
 This string will be displayed if a single macro is being hidden
-which is not specified in `noXML-fold-macro-spec-list'."
+which is not specified in `noxml-fold-macro-spec-list'."
   :type '(string)
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defcustom noXML-fold-unspec-use-name t
+(defcustom noxml-fold-unspec-use-name t
   "If non-nil use the name of an unspecified item as display string.
 Set it to nil if you want to use the values of the variables
-`noXML-fold-unspec-block-display-string' or
-`noXML-fold-unspec-inline-display-string' respectively as a display
+`noxml-fold-unspec-block-display-string' or
+`noxml-fold-unspec-inline-display-string' respectively as a display
 string for any unspecified macro or environment."
   :type 'boolean
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defcustom noXML-fold-spec-list nil
+(defcustom noxml-fold-spec-list nil
   "A list defining what things to fold, and how.
 
 The first element of each item can be a string, an integer or a
@@ -209,35 +209,35 @@ An example I use for TEI XML:
  (\"⚐\" (\"note\"))
  (\"ₓ\" (\"gap\"))
  (\"➶\" (\"ref\" \"ptr\"))
- (noXML-render-direct-children nil);; okay, I don't use this much
- (noXML-get-content
+ (noxml-render-direct-children nil);; okay, I don't use this much
+ (noxml-get-content
   (\"label\" \"hi\" \"q\" \"corr\" \"persName\" \"span\" \"lem\" \"rdg\" \"emph\" \"del\" \"unclear\" \"w\" \"add\"));; don't hide the content here
- (noXML-render-first-child (\"app\")))';; for the app elements, show whatever is the first sub-element."
+ (noxml-render-first-child (\"app\")))';; for the app elements, show whatever is the first sub-element."
   :type '(repeat (group (choice (string :tag "Display String")
 				(integer :tag "Number of argument" :value 1)
 				(function :tag "Function to execute"))
 			(repeat :tag "Element" (string))))
-  :group 'noXML-fold)
+  :group 'noxml-fold)
 
-(defvar noXML-fold-spec-list-internal nil
+(defvar noxml-fold-spec-list-internal nil
   "Internal list of display strings and macros to fold.
-Is updated when the noXML-Fold mode is being activated and then
+Is updated when the noxml-Fold mode is being activated and then
 contains all constructs to fold for the given buffer or mode
-respectively, i.e. contents of both `noXML-fold-spec-list'
+respectively, i.e. contents of both `noxml-fold-spec-list'
 and <mode-prefix>-fold-macro-spec-list.")
-;; (make-variable-buffer-local 'noXML-fold-spec-list-internal);; not a good idea: do this in mode definition below (see http://www.emacswiki.org/emacs/BufferLocalVariable)
+;; (make-variable-buffer-local 'noxml-fold-spec-list-internal);; not a good idea: do this in mode definition below (see http://www.emacswiki.org/emacs/BufferLocalVariable)
 
 ;;; utility functions
 
-(defun noXML-fold-flatten-spec-list (specList)
-  "Flattens the SPECLIST `noXML-fold-spec-list such that each element name can be found easily with assoc."
+(defun noxml-fold-flatten-spec-list (specList)
+  "Flattens the SPECLIST `noxml-fold-spec-list such that each element name can be found easily with assoc."
   (let (flatList)
     (dolist (set specList flatList)
       (unless (eq (nth 1 set) nil)
 	(dolist (item (nth 1 set))
 	  (setq flatList (cons (cons item (car set)) flatList)))))))
 
-(defun noXML-element-attribute-get-value (name &optional as-string)
+(defun noxml-element-attribute-get-value (name &optional as-string)
   "Find the value of the last parsed element's attribute NAME.
 
 If NAME is a string, look for that attribute.
@@ -270,7 +270,7 @@ nil, return the attributes and values as a string."
 	    (substring result-string 0 (- (length result-string) 3)))
 	  result)))
 
-(defun noXML-find-element-start (position)
+(defun noxml-find-element-start (position)
   "Find start of the element around POSITION.
 
 If point is in data, comment, or closing tag, returns position of
@@ -302,13 +302,13 @@ http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html
 	     (message "The element starts at char: %d" xmltok-start)
 	   xmltok-start)))))
 
-(defun noXML-find-element-end (position)
+(defun noxml-find-element-end (position)
   "Return the position of the element starting at POSITION."
   (interactive "d")
   (save-excursion
     (let (
 	  (nxml-sexp-element-flag nil)
-	  (start-element (noXML-find-element-start position))
+	  (start-element (noxml-find-element-start position))
 	  end-of-end-tag
 	  xmltok-start)
       (progn
@@ -318,28 +318,28 @@ http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html
 	  end-of-end-tag)))))
 
 
-(defun noXML-fold-make-overlay (ov-start ov-end type display-string-spec priority)
-  "Make a noXML-fold overlay extending from OV-START to OV-END.
+(defun noxml-fold-make-overlay (ov-start ov-end type display-string-spec priority)
+  "Make a noxml-fold overlay extending from OV-START to OV-END.
 TYPE is a symbol which is used to describe the content to hide
 and may be 'inline for inline elements or 'block for block
 elements.  DISPLAY-STRING-SPEC is the original specification of
-the display string in the variable `noXML-fold-spec-list' and may
+the display string in the variable `noxml-fold-spec-list' and may
 be a string or an integer.  PRIORITY sets the priority of the
 item.
 
 TODO: review info:nxml-mode#Paragraphs for a different (better?) solution."
   ;; Calculate priority before the overlay is instantiated.  We don't
-  ;; want `noXML-overlay-prioritize' to pick up a non-prioritized one.
-  (let* (;;(priority (noXML-overlay-prioritize ov-start ov-end type))
+  ;; want `noxml-overlay-prioritize' to pick up a non-prioritized one.
+  (let* (;;(priority (noxml-overlay-prioritize ov-start ov-end type))
 	(ov (make-overlay ov-start ov-end (current-buffer) t nil)))
-    (overlay-put ov 'category 'noXML-fold)
+    (overlay-put ov 'category 'noxml-fold)
     (overlay-put ov 'priority priority)
     (overlay-put ov 'evaporate t)
-    (overlay-put ov 'noXML-fold-type type)
-    (overlay-put ov 'noXML-fold-display-string-spec display-string-spec)
+    (overlay-put ov 'noxml-fold-type type)
+    (overlay-put ov 'noxml-fold-display-string-spec display-string-spec)
     ov))
 
-(defun noXML-overlay-prioritize (start end &optional type)
+(defun noxml-overlay-prioritize (start end &optional type)
   "Calculate a priority for an overlay from START to END.
 
 The optional TYPE should be 'inline, otherwise we default to
@@ -349,8 +349,8 @@ enclosed overlays."
   (save-excursion
     (let ((ov-depth 0)
 	  (nxml-sexp-element-flag nil)
-	  (factor noXML-overlay-priority-step)
-	  (type (or type (if (progn (goto-char start) (nxml-token-after) (noXML-is-inline))
+	  (factor noxml-overlay-priority-step)
+	  (type (or type (if (progn (goto-char start) (nxml-token-after) (noxml-is-inline))
 			     'inline
 			   'block)
 			     )))
@@ -361,19 +361,19 @@ enclosed overlays."
 			    (nxml-backward-up-element) ; always returns nil
 			    t)
 			(error nil))
-		      (noXML-is-inline);; stop at block level element
+		      (noxml-is-inline);; stop at block level element
 		      )
 	    (setq ov-depth (- ov-depth factor)))
 	ov-depth))))
 
 
-(defun noXML-make-overlay-invisible ()
+(defun noxml-make-overlay-invisible ()
   "Hides the element surrounding point."
   (interactive)
   (save-excursion
     (let* (;; let* creates args sequentially; earlier definitions available in later definitions
-	   (element-start (noXML-find-element-start (point)))
-	   (element-end (noXML-find-element-end (point)))
+	   (element-start (noxml-find-element-start (point)))
+	   (element-end (noxml-find-element-end (point)))
 	   (text (filter-buffer-substring element-start element-end))
 	   (element (concat (substring text 0 2) "../>"))
 	   (noxmloverlay (make-overlay element-start element-end))
@@ -381,18 +381,18 @@ enclosed overlays."
       ;; here, we're at the end of the element
       (overlay-put noxmloverlay 'display element)
       (overlay-put noxmloverlay 'intangible ())
-      (overlay-put noxmloverlay 'category 'noXML-fold)
+      (overlay-put noxmloverlay 'category 'noxml-fold)
 	)))
 
 
-(defun noXML-render-first-child (position)
+(defun noxml-render-first-child (position)
   "Render the first child of element at POSITION.
 
 Useful for stuff like <app><lem>, or <choice><sic>."
   (let* (
 	 (nxml-sexp-element-flag nil)
-	 (start (noXML-find-element-start position))
-	 (end (noXML-find-element-end start))
+	 (start (noxml-find-element-start position))
+	 (end (noxml-find-element-end start))
 	 (content "[no content found]"))
     (save-excursion
       (progn
@@ -400,11 +400,11 @@ Useful for stuff like <app><lem>, or <choice><sic>."
 	(nxml-forward-balanced-item);; to the end of elem1
 	(nxml-forward-balanced-item);; either at end of elem2's opening tag, or at the end of elem1
 	(if (= (point) end);; if at the end
-	    (setq content (noXML-fold-get-element-name start));; elem1's empty, use its name
+	    (setq content (noxml-fold-get-element-name start));; elem1's empty, use its name
 	  (nxml-backward-up-element);; go to the beginning of elem2
 	  )
 	(if (>= (point) end);; if the element has no content
-	    (setq content (noXML-fold-get-element-name start));; use the element name
+	    (setq content (noxml-fold-get-element-name start));; use the element name
 	  (while (< (point) end);; start walking forward
 	    (cond ((looking-at "<[/!]");; are we at the start of an end tag or comment?
 		   (nxml-forward-balanced-item));; then skip ahead and
@@ -416,7 +416,7 @@ Useful for stuff like <app><lem>, or <choice><sic>."
 		  (
 		   (looking-at "<[a-zA-Z0-9]+");; the first element; we'll use its content
 		   (progn
-		     (setq content (noXML-get-content (point)));; that's all we wanted, so go to end
+		     (setq content (noxml-get-content (point)));; that's all we wanted, so go to end
 		     (goto-char end)))
 		  (t (setq content "[no sub-element found]");; the default behaviour
 		     ))
@@ -424,13 +424,13 @@ Useful for stuff like <app><lem>, or <choice><sic>."
     content
     ))
 
-(defun noXML-render-direct-children (position)
+(defun noxml-render-direct-children (position)
   "Render element at POSITION, showing all its direct children.
 
 Useful for stuff like <lg><l/><l/> etc."
   (let* (
-	(start (noXML-find-element-start position))
-	(end (noXML-find-element-end start))
+	(start (noxml-find-element-start position))
+	(end (noxml-find-element-end start))
 	(nxml-sexp-element-flag nil)
 	(content "[no content found]")
 	name-of-child
@@ -441,11 +441,11 @@ Useful for stuff like <lg><l/><l/> etc."
 	(nxml-forward-balanced-item);; to the end of elem1
 	(nxml-forward-balanced-item);; either at end of elem2's opening tag, or at the end of elem1
 	(if (= (point) end);; if at the end
-	    (setq content (noXML-fold-get-element-name start));; elem1's empty, use its name
+	    (setq content (noxml-fold-get-element-name start));; elem1's empty, use its name
 	  (nxml-backward-up-element);; go to the beginning of elem2
 	  )
 	(if (>= (point) end);; if the element has no content
-	    (setq content (noXML-fold-get-element-name start));; use the element name
+	    (setq content (noxml-fold-get-element-name start));; use the element name
 	  (while (< (point) end);; start walking forward
 	    (cond ((looking-at "<[/!]");; are we at the start of an end tag or comment?
 		   (nxml-forward-balanced-item));; then skip ahead and
@@ -457,14 +457,14 @@ Useful for stuff like <lg><l/><l/> etc."
 		  ((looking-at "<[a-zA-Z0-9]+");; an element; let's have a closer look
 		   (progn
 		     (if (not name-of-child);; if we haven't found a child yet
-			 (progn (setq name-of-child (noXML-fold-get-element-name (point));; set its name
-			   content (noXML-get-content (point)));; and use its content
+			 (progn (setq name-of-child (noxml-fold-get-element-name (point));; set its name
+			   content (noxml-get-content (point)));; and use its content
 				(nxml-forward-element);; and skip forward to start of next sibling
 				(nxml-forward-balanced-item)
 				(nxml-backward-up-element)
 				)
 		       (progn ;; if we've found a child already, check if the current element has the same name
-			(if (string= name-of-child (noXML-fold-get-element-name (point)))
+			(if (string= name-of-child (noxml-fold-get-element-name (point)))
 			    (progn ;; if its the same, append its value to content
 			      (nxml-forward-balanced-item)
 			      (setq content (concat content "\n" (filter-buffer-substring (point) (progn (nxml-forward-balanced-item) (point))))))
@@ -475,11 +475,11 @@ Useful for stuff like <lg><l/><l/> etc."
 		   (setq content (concat content (filter-buffer-substring (point) (progn (nxml-forward-balanced-item) (point)))))))))
 	content ))))
 
-(defun noXML-get-content (position)
+(defun noxml-get-content (position)
   "Gets the content of the element in overlay at POSITION in buffer."
   (let* (
-	(from-here (noXML-find-element-start position))
-	(to-here (noXML-find-element-end from-here))
+	(from-here (noxml-find-element-start position))
+	(to-here (noxml-find-element-end from-here))
 	(nxml-sexp-element-flag t)
 	content)
     (save-excursion
@@ -490,15 +490,15 @@ Useful for stuff like <lg><l/><l/> etc."
 	   ;; if the element starts at the beginning of the region, and is empty
 	   ((and (= xmltok-start from-here)
 		 (string-equal xmltok-type "empty-element"))
-	    (setq content (noXML-fold-get-element-name xmltok-start)));; return its name
+	    (setq content (noxml-fold-get-element-name xmltok-start)));; return its name
 	   ;; if this is the end tag of the whole element, just ignore
 	   ((= (nxml-token-after) to-here) t)
 	   ((memq xmltok-type '(end-tag empty-element));; so this is a child element: use its overlays as content
 	      ;; (progn
-	      ;;   (noXML-fold-item 'block);; fold the region of the subelement here
+	      ;;   (noxml-fold-item 'block);; fold the region of the subelement here
 	      ;; )
 	    (progn
-	      (goto-char (noXML-find-element-start (point)))
+	      (goto-char (noxml-find-element-start (point)))
 	      (let ((overlays (overlays-at (point))))
 		(dolist (overlay overlays)
 		  (if (overlay-get overlay 'display)
@@ -512,37 +512,37 @@ Useful for stuff like <lg><l/><l/> etc."
 	content
 	)))
 
-(defun noXML-fold-clearout-region (start end)
+(defun noxml-fold-clearout-region (start end)
   "Permanently show all elements in region starting at START and ending at END."
   (interactive "r")
   (let ((overlays (overlays-in start end)))
-    (noXML-fold-remove-overlays overlays)))
+    (noxml-fold-remove-overlays overlays)))
 
-(defun noXML-fold-clearout-buffer ()
+(defun noxml-fold-clearout-buffer ()
   "Permanently show all macros in the buffer."
   (interactive)
-  (noXML-fold-clearout-region (point-min) (point-max)))
+  (noxml-fold-clearout-region (point-min) (point-max)))
 
-(defun noXML-fold-clearout-item ()
+(defun noxml-fold-clearout-item ()
   "Remove all folds from the element on which point currently is located (and its children)."
   (interactive)
-  (let ((overlays (overlays-in (noXML-find-element-start (point)) (noXML-find-element-end (point)))))
-    (noXML-fold-remove-overlays overlays)))
+  (let ((overlays (overlays-in (noxml-find-element-start (point)) (noxml-find-element-end (point)))))
+    (noxml-fold-remove-overlays overlays)))
 
-(defun noXML-fold-remove-overlays (overlays)
-  "Remove all overlays set by noXML-fold in OVERLAYS.
+(defun noxml-fold-remove-overlays (overlays)
+  "Remove all overlays set by noxml-fold in OVERLAYS.
 
 Return non-nil if a removal happened, nil otherwise.  See
 `TeX-fold-remove-overlays'."
   (let (found)
     (while overlays
-      (when (eq (overlay-get (car overlays) 'category) 'noXML-fold)
+      (when (eq (overlay-get (car overlays) 'category) 'noxml-fold)
 	(delete-overlay (car overlays))
 	(setq found t))
       (setq overlays (cdr overlays)))
     found))
 
-(defun noXML-fold-get-element-name (position)
+(defun noxml-fold-get-element-name (position)
   "Return the name of the element POSITION is in, or, if POSITION is on an opening tag, that tag's name."
   (let ((nxml-sexp-element-flag nil))
    (save-excursion
@@ -554,18 +554,18 @@ Return non-nil if a removal happened, nil otherwise.  See
        (goto-char xmltok-start)	;; xmltok-start is set by nxml-scan-element-backward
        (xmltok-start-tag-local-name)))))
 
-(defun noXML-fold-visible (&optional around-screen)
+(defun noxml-fold-visible (&optional around-screen)
   "Fold what's approximately on the current screen.
 
 AROUND-SCREEN gives the number of chars outside the screen to
-consider in folding.  Defaults to `noXML-fold-add-to-screen', and
+consider in folding.  Defaults to `noxml-fold-add-to-screen', and
 falls back to 2000."
   (interactive
-   (list (if current-prefix-arg (read-number "How many chars: ") noXML-fold-add-to-screen)))
-  (let ((around-screen (or around-screen noXML-fold-add-to-screen 2000)))
-    (noXML-fold-region (max (point-min) (- (window-start) around-screen)) (min (point-max) (+ (window-end) around-screen)))))
+   (list (if current-prefix-arg (read-number "How many chars: ") noxml-fold-add-to-screen)))
+  (let ((around-screen (or around-screen noxml-fold-add-to-screen 2000)))
+    (noxml-fold-region (max (point-min) (- (window-start) around-screen)) (min (point-max) (+ (window-end) around-screen)))))
 
-(defun noXML-fold-region (start end)
+(defun noxml-fold-region (start end)
   "Fold all complete items in region from START to END."
   (interactive "r")
   (save-excursion
@@ -601,28 +601,28 @@ falls back to 2000."
 			      )
 			     ))
 		      (if (member xmltok-type (list 'start-tag 'empty-element))
-			  (if (noXML-is-inline)
-			      (noXML-fold-item 'inline elementVals (* (- 0 (length whackTree)) noXML-overlay-priority-step))
-			    (noXML-fold-item 'block elementVals (* (- 0 (length whackTree)) noXML-overlay-priority-step)))
+			  (if (noxml-is-inline)
+			      (noxml-fold-item 'inline elementVals (* (- 0 (length whackTree)) noxml-overlay-priority-step))
+			    (noxml-fold-item 'block elementVals (* (- 0 (length whackTree)) noxml-overlay-priority-step)))
 			))))
 	      (goto-char xmltok-start)
 	      t))
 	  )))))
 
-(defun noXML-is-inline ()
+(defun noxml-is-inline ()
   "Find out if last scanned element is an inline element or not.
 
 We simply check whether the start tag is preceded by only white
 space or nothing to the start of the line (see
-`noXML-is-not-inline-regexp' for the regex used).  You can override
-this by adding the element name to `noXML-inline-elements'."
+`noxml-is-not-inline-regexp' for the regex used).  You can override
+this by adding the element name to `noxml-inline-elements'."
   (save-excursion
       (let
-	  ((block-regexp (or noXML-is-not-inline-regexp "^\\s-*<[^/]"))
+	  ((block-regexp (or noxml-is-not-inline-regexp "^\\s-*<[^/]"))
 	   is-inline)
-	(if (member (xmltok-start-tag-local-name) noXML-inline-elements)
+	(if (member (xmltok-start-tag-local-name) noxml-inline-elements)
 	    t
-	  (if (member (xmltok-start-tag-local-name) noXML-block-elements)
+	  (if (member (xmltok-start-tag-local-name) noxml-block-elements)
 	      nil
 	    (if (and xmltok-start (not (eq xmltok-type ())))
 		(unless (eq xmltok-start (point-min))
@@ -633,16 +633,16 @@ this by adding the element name to `noXML-inline-elements'."
 		      ())))))))))
 
 
-(defun noXML-fold-buffer ()
+(defun noxml-fold-buffer ()
   "Hide all configured macros and environments in the current buffer.
-The relevant macros are specified in the variable `noXML-fold-macro-spec-list'
-and `noXML-fold-math-spec-list', and environments in `noXML-fold-env-spec-list'."
+The relevant macros are specified in the variable `noxml-fold-macro-spec-list'
+and `noxml-fold-math-spec-list', and environments in `noxml-fold-env-spec-list'."
   (interactive)
-  (noXML-fold-clearout-region (point-min) (point-max))
-  (noXML-fold-region (point-min) (point-max)))
+  (noxml-fold-clearout-region (point-min) (point-max))
+  (noxml-fold-region (point-min) (point-max)))
 
 
-(defun noXML-fold-item (type &optional elementPositions depth)
+(defun noxml-fold-item (type &optional elementPositions depth)
   "Hide the item on which point currently is located.
 
 TYPE specifies the type of item and can be one of the symbols
@@ -669,7 +669,7 @@ folded, nil otherwise.  Based on `TeX-fold-item'."
       (when item-start
 	(let* (
 	       ;; figure out what this item is called (setq item-name 'anchor)
-	       ;; (item-end (noXML-find-element-end item-start))
+	       ;; (item-end (noxml-find-element-end item-start))
 	       (starts-and-ends ;; a list of the start and end of each thing that should be overlayed here
 		(if (and (not (eq xmltok-type 'empty-element)) (eq type 'block))
 		    (list
@@ -682,28 +682,28 @@ folded, nil otherwise.  Based on `TeX-fold-item'."
 		  (list (cons item-start item-end))))
 	       (display-string-spec ;; what to show when folding
 		(or
-		 (cdr (assoc item-name noXML-fold-spec-list-internal))
-		 (if noXML-fold-unspec-use-name
+		 (cdr (assoc item-name noxml-fold-spec-list-internal))
+		 (if noxml-fold-unspec-use-name
 			(concat "[" item-name "]")
 		      (if (eq type 'block)
-			  noXML-fold-unspec-block-display-string
-			noXML-fold-unspec-inline-display-string))))
+			  noxml-fold-unspec-block-display-string
+			noxml-fold-unspec-inline-display-string))))
 	       (ovs ;; set up a list of the overlays
 		 (mapcar
 		  (lambda (start-and-end)
-		    (noXML-fold-make-overlay
+		    (noxml-fold-make-overlay
 		     (car start-and-end)
 		     (cdr start-and-end)
 		     type display-string-spec
 		     (if depth
-			 (* depth noXML-overlay-priority-step)
+			 (* depth noxml-overlay-priority-step)
 		       ;; recalculate overlay depth if not supplied
-		       (noXML-overlay-prioritize (car start-and-end) (cdr start-and-end)))
+		       (noxml-overlay-prioritize (car start-and-end) (cdr start-and-end)))
 		     ))
 		  starts-and-ends)))
-	  (noXML-fold-hide-item ovs))))))
+	  (noxml-fold-hide-item ovs))))))
 
-(defun noXML-expression-start-end (position)
+(defun noxml-expression-start-end (position)
   "Find the start and end of an item at POSITION."
   (let ((nxml-sexp-element-flag nil))
     (save-excursion
@@ -714,13 +714,13 @@ folded, nil otherwise.  Based on `TeX-fold-item'."
 		 position
 		 (nxml-token-after))))))))
 
-(defun noXML-fold-make-help-echo (start end)
+(defun noxml-fold-make-help-echo (start end)
   "Return a string to be used as the help echo of folded overlays.
 The text between START and END will be used for this but cropped
-to the length defined by `noXML-fold-help-echo-max-length'.  Line
+to the length defined by `noxml-fold-help-echo-max-length'.  Line
 breaks will be replaced by spaces.  This is also what gets shown when
 the mouse is on the point."
-  (let* ((spill (+ start noXML-fold-help-echo-max-length))
+  (let* ((spill (+ start noxml-fold-help-echo-max-length))
 	 (lines (split-string (buffer-substring start (min end spill)) "\n"))
 	 (result (pop lines)))
     (dolist (line lines)
@@ -734,7 +734,7 @@ the mouse is on the point."
     (when (> end spill) (setq result (concat result "...")))
     result))
 
-(defun noXML-fold-partition-list (p l)
+(defun noxml-fold-partition-list (p l)
   "Use P to partition list L.
 
 The function returns a `cons' cell where the `car' contains
@@ -747,9 +747,9 @@ other elements.  The ordering among elements is maintained."
 
 ;; this allows us to use a function instead of the simple invisible
 ;; property: we have to set invisible to this:
-;; (put 'noXML-fold 'reveal-toggle-invisible 'noXML-fold-reveal-toggle-invisible)
+;; (put 'noxml-fold 'reveal-toggle-invisible 'noxml-fold-reveal-toggle-invisible)
 
-(defun noXML-fold-show-item (ov)
+(defun noxml-fold-show-item (ov)
   "Show a single element.
 Remove the respective properties from the overlay OV."
   (overlay-put ov 'mouse-face nil)
@@ -760,15 +760,15 @@ Remove the respective properties from the overlay OV."
     (overlay-put ov 'display nil)
     (overlay-put ov 'help-echo nil)
     (when font-lock-mode
-      (overlay-put ov 'face noXML-fold-unfolded-face))))
+      (overlay-put ov 'face noxml-fold-unfolded-face))))
 
-(defun noXML-fold-post-command ()
+(defun noxml-fold-post-command ()
   "Take care to fold/unfold stuff as we move along."
   ;; `with-local-quit' is not supported in XEmacs.
   (condition-case nil
       (let ((inhibit-quit nil))
 	(condition-case err
-	    (let* ((spots (noXML-fold-partition-list
+	    (let* ((spots (noxml-fold-partition-list
 			   (lambda (x)
 			     ;; We refresh any spot in the current
 			     ;; window as well as any spots associated
@@ -778,9 +778,9 @@ Remove the respective properties from the overlay OV."
 				 (not (window-live-p (car x)))
 				 (not (eq (window-buffer (car x))
 					  (current-buffer)))))
-			   noXML-fold-open-spots))
+			   noxml-fold-open-spots))
 		   (old-ols (mapcar 'cdr (car spots))))
-	      (setq noXML-fold-open-spots (cdr spots))
+	      (setq noxml-fold-open-spots (cdr spots))
 	      (when (or (and (boundp 'disable-point-adjustment)
 			     disable-point-adjustment)
 			(and (boundp 'global-disable-point-adjustment)
@@ -792,32 +792,32 @@ Remove the respective properties from the overlay OV."
 				    'mouse-set-point)))
 		;; Open new overlays.
 		(dolist (ol (nconc (when ;; we use either the overalays in the region
-				       (and noXML-fold-unfold-around-mark
+				       (and noxml-fold-unfold-around-mark
 					      (boundp 'mark-active)
 					      mark-active)
 				     (overlays-at (mark)))
 				   (overlays-at (point))));; or at the point
-		  (when (eq (overlay-get ol 'category) 'noXML-fold)
-		    (push (cons (selected-window) ol) noXML-fold-open-spots)
+		  (when (eq (overlay-get ol 'category) 'noxml-fold)
+		    (push (cons (selected-window) ol) noxml-fold-open-spots)
 		    (setq old-ols (delq ol old-ols))
-		    (noXML-fold-show-item ol))))
+		    (noxml-fold-show-item ol))))
 	      ;; Close old overlays.
 	      (dolist (ol old-ols)
 		(when (and (eq (current-buffer) (overlay-buffer ol))
-			   (not (rassq ol noXML-fold-open-spots))
+			   (not (rassq ol noxml-fold-open-spots))
 			   (or (not (featurep 'xemacs))
 			       (and (featurep 'xemacs)
 				    (not (extent-detached-p ol)))))
 		  (if (and (>= (point) (overlay-start ol))
 			   (<= (point) (overlay-end ol)))
 		      ;; Still near the overlay: keep it open.
-		      (push (cons (selected-window) ol) noXML-fold-open-spots)
+		      (push (cons (selected-window) ol) noxml-fold-open-spots)
 		    ;; Really close it.
-		    (noXML-fold-hide-item (list ol))))))
-	  (error (message "noXML-fold: %s" err))))
+		    (noxml-fold-hide-item (list ol))))))
+	  (error (message "noxml-fold: %s" err))))
     (quit (setq quit-flag t))))
 
-(defun noXML-fold-hide-item (ovs)
+(defun noxml-fold-hide-item (ovs)
   "Hide a single inline or block item in current overlay list OVS.
 
 That means, put respective properties onto overlay.  Based on
@@ -826,10 +826,10 @@ That means, put respective properties onto overlay.  Based on
     (let* ((nxml-sexp-element-flag nil)
 	   (ov-start (overlay-start ov))
 	   (ov-end (overlay-end ov))
-	   (spec (overlay-get ov 'noXML-fold-display-string-spec))
+	   (spec (overlay-get ov 'noxml-fold-display-string-spec))
 	   (computed (cond ;; the specification spec can be either a string or a function
 		      ((stringp spec)
-		     ;;(noXML-fold-expand-spec spec ov-start ov-end);; yes, not really relevant for xml folding i think
+		     ;;(noxml-fold-expand-spec spec ov-start ov-end);; yes, not really relevant for xml folding i think
 		     spec
 		     )
 		    ((functionp spec);; if we have a function to call here
@@ -837,8 +837,8 @@ That means, put respective properties onto overlay.  Based on
 		       (setq result (or (condition-case nil
 					    (save-restriction
 					      (apply spec arg nil));; the nil is necessary, last arg to apply is a list
-					  ;; (noXML-render-first-child arg)
-					  ;; (noXML-render-direct-children arg)
+					  ;; (noxml-render-first-child arg)
+					  ;; (noxml-render-direct-children arg)
 					  (error nil))
 					(format "[Error: Content extraction function %s had a problem.]" spec)))
 		       (nxml-token-before);; reset scan state
@@ -848,10 +848,10 @@ That means, put respective properties onto overlay.  Based on
 	 (display-string (if (listp computed) (car computed) computed))
 	 (face (when (listp computed) (cadr computed))))
     ;; Cater for zero-length display strings.
-    (when (string= display-string "") (setq display-string noXML-fold-ellipsis))
+    (when (string= display-string "") (setq display-string noxml-fold-ellipsis))
     ;; Add a linebreak to the display string and adjust the overlay end
     ;; in case of an overfull line.
-    (when (noXML-fold-overfull-p ov-start ov-end display-string)
+    (when (noxml-fold-overfull-p ov-start ov-end display-string)
       (setq display-string (concat display-string "\n"))
       (move-overlay ov ov-start (save-excursion
 				  (goto-char ov-end)
@@ -864,20 +864,20 @@ That means, put respective properties onto overlay.  Based on
 				     (car display-string)
 				   display-string))))
 	  ;; (overlay-put ov 'invisible t)
-	  (overlay-put ov 'invisible 'noXML-fold)
+	  (overlay-put ov 'invisible 'noxml-fold)
 	  (when font-lock-mode
 	    (if face
 		(set-glyph-property glyph 'face face)
-	      (set-glyph-property glyph 'face noXML-fold-folded-face)))
+	      (set-glyph-property glyph 'face noxml-fold-folded-face)))
 	  (set-extent-property ov 'end-glyph glyph))
       (when font-lock-mode
-	(overlay-put ov 'face noXML-fold-folded-face))
-      (unless (zerop noXML-fold-help-echo-max-length)
-	(overlay-put ov 'help-echo (noXML-fold-make-help-echo
+	(overlay-put ov 'face noxml-fold-folded-face))
+      (unless (zerop noxml-fold-help-echo-max-length)
+	(overlay-put ov 'help-echo (noxml-fold-make-help-echo
 				    (overlay-start ov) (overlay-end ov))))))))
 
 
-(defun noXML-fold-dwim ()
+(defun noxml-fold-dwim ()
   "Hide or show items according to the current context.
 If there is folded content, unfold it.  If there is a marked
 region, fold all configured content in this region.  If there is
@@ -885,22 +885,22 @@ no folded content but an inline  or block element, fold it."
   (interactive)
   (cond ((use-region-p)
 	 (cond
-	  ((noXML-fold-clearout-region (region-beginning) (region-end)) (message "Unfolded region."))
-	  ((noXML-fold-region (region-beginning) (region-end)) (message "Folded element."))
+	  ((noxml-fold-clearout-region (region-beginning) (region-end)) (message "Unfolded region."))
+	  ((noxml-fold-region (region-beginning) (region-end)) (message "Folded element."))
 	  ))
-	((overlays-at (point)) (noXML-fold-clearout-item) (message "Unfolded item."))
-	((noXML-fold-visible) (message "Folded window."))))
+	((overlays-at (point)) (noxml-fold-clearout-item) (message "Unfolded item."))
+	((noxml-fold-visible) (message "Folded window."))))
 
-;; (defun noXML-make-overlay-visible (position)
+;; (defun noxml-make-overlay-visible (position)
 ;;   (interactive "d");; interactive, with the point of the mark as an integer
 ;;   (let (
-;; 	(noxmlov (make-overlay (noXML-find-element-start (point)) (noXML-find-element-end (point)) ))
+;; 	(noxmlov (make-overlay (noxml-find-element-start (point)) (noxml-find-element-end (point)) ))
 ;; 	)
 ;;     (overlay-put noxmlov 'invisible nil)
 ;;     ))
 
 ;; I think this is not very useful for xml-folding:
-;; (defun noXML-fold-expand-spec (spec ov-start ov-end)
+;; (defun noxml-fold-expand-spec (spec ov-start ov-end)
 ;;   "Expand instances of {<num>}, [<num>], <<num>>, and (<num>).
 ;; Replace them with the respective macro argument."
 ;;   (let ((spec-list (split-string spec "||"))
@@ -922,20 +922,20 @@ no folded content but an inline  or block element, fold it."
 ;; 	  (setq index (match-end 0))
 ;; 	  (let ((arg (car (save-match-data
 ;; 			    ;; Get the argument.
-;; 			    (noXML-fold-macro-nth-arg
+;; 			    (noxml-fold-macro-nth-arg
 ;; 			     (string-to-number (match-string 2 elt))
 ;; 			     ov-start ov-end
 ;; 			     (assoc (string-to-char (match-string 1 elt))
 ;; 				    delims))))))
 ;; 	    (when arg (setq success t))
 ;; 	    ;; Replace the placeholder in the string.
-;; 	    (setq elt (replace-match (or arg noXML-fold-ellipsis) nil t elt)
+;; 	    (setq elt (replace-match (or arg noxml-fold-ellipsis) nil t elt)
 ;; 		  index (+ index (- (length elt) (length spec)))
 ;; 		  spec elt)))
 ;; 	(when success (throw 'success nil))))
 ;;     spec))
 
-;; (defun noXML-fold-macro-nth-arg (n macro-start &optional macro-end delims)
+;; (defun noxml-fold-macro-nth-arg (n macro-start &optional macro-end delims)
 ;;   "Return a property list of the argument number N of a macro.
 ;; The start of the macro to examine is given by MACRO-START, its
 ;; end optionally by MACRO-END.  With DELIMS the type of delimiters
@@ -952,7 +952,7 @@ no folded content but an inline  or block element, fold it."
 ;; of the resulting list."
 ;;   (save-excursion
 ;;     (let* ((macro-end (or macro-end
-;; 					  (noXML-find-element-end macro-start)))
+;; 					  (noxml-find-element-end macro-start)))
 ;; 	   (open-char (if delims (car delims) ?<))
 ;; 	   (open-string (char-to-string open-char))
 ;; 	   (close-char (if delims (cdr delims) ?>))
@@ -969,7 +969,7 @@ no folded content but an inline  or block element, fold it."
 ;; 					(skip-chars-forward
 ;; 					 (concat open-string " \t"))
 ;; 					(point)))
-;; 		  (noXML-find-element-end macro-start)
+;; 		  (noxml-find-element-end macro-start)
 ;; 		  (setq content-end (save-excursion
 ;; 				      (backward-char)
 ;; 				      (skip-chars-backward " \t")
@@ -977,7 +977,7 @@ no folded content but an inline  or block element, fold it."
 ;; 		  (setq n (1- n)))
 ;; 		t)
 ;; 	    (error nil))
-;; 	  (list (noXML-fold-buffer-substring content-start content-end)
+;; 	  (list (noxml-fold-buffer-substring content-start content-end)
 ;; 		(when (and (featurep 'xemacs)
 ;; 			   (extent-at content-start))
 ;; 		  ;; A glyph in XEmacs does not seem to be able to hold more
@@ -985,7 +985,7 @@ no folded content but an inline  or block element, fold it."
 ;; 		  (car (extent-property (extent-at content-start) 'face))))
 ;; 	nil))))
 
-(defun noXML-fold-overfull-p (ov-start ov-end display-string)
+(defun noxml-fold-overfull-p (ov-start ov-end display-string)
   "Return t if an overfull line will result after adding an overlay.
 The overlay extends from OV-START to OV-END and will display the
 string DISPLAY-STRING."
@@ -1006,7 +1006,7 @@ string DISPLAY-STRING."
 		ov-end))
 	  (current-fill-column))))
   
-(defun noXML-fold-buffer-substring (start end)
+(defun noxml-fold-buffer-substring (start end)
   "Return the contents of buffer from START to END as a string.
 Like `buffer-substring' but copy overlay display strings as well."
   ;; Swap values of `start' and `end' if necessary.
@@ -1016,7 +1016,7 @@ Like `buffer-substring' but copy overlay display strings as well."
     ;; Get rid of overlays not under our control or not completely
     ;; inside the specified region.
     (dolist (ov overlays)
-      (when (or (not (eq (overlay-get ov 'category) 'noXML-fold))
+      (when (or (not (eq (overlay-get ov 'category) 'noxml-fold))
 		(< (overlay-start ov) start)
 		(> (overlay-end ov) end))
 	(setq overlays (remove ov overlays))))
@@ -1049,7 +1049,7 @@ Like `buffer-substring' but copy overlay display strings as well."
 
 
 ;; not strictly useful for folding
-(defun noXML-where-am-i (&optional attributes)
+(defun noxml-where-am-i (&optional attributes)
   "Show current position as a path of elements.
 
 If ATTRIBUTES is a list (e.g., '(xml:id xml:lang type)), the
@@ -1077,7 +1077,7 @@ http://www.emacswiki.org/emacs/NxmlMode#toc11."
 			  t)
 		      (error nil)))
 	  (setq path (cons (concat (xmltok-start-tag-local-name)
-				   (format "%s" (or (noXML-element-attribute-get-value attributes 'as-string) "")))
+				   (format "%s" (or (noxml-element-attribute-get-value attributes 'as-string) "")))
 			   path)))
 	(if (called-interactively-p t)
 	    (message "/%s" (mapconcat 'identity path "/"))
@@ -1086,36 +1086,36 @@ http://www.emacswiki.org/emacs/NxmlMode#toc11."
 
 ;;; load everything as minor mode
 ;;;###autoload
-(define-minor-mode noXML-fold-mode
+(define-minor-mode noxml-fold-mode
   "Minor mode for hiding and revealing XML tags.
 
 Called interactively, with no prefix argument, toggle the mode.
 With universal prefix ARG (or if ARG is nil) turn mode on.
 With zero or negative ARG turn mode off."
-  nil " noXML" (list (cons noXML-fold-command-prefix noXML-fold-keymap))
-  (if (and noXML-fold-mode (string-equal "nxml-mode" major-mode))
+  nil " noxml" (list (cons noxml-fold-command-prefix noxml-fold-keymap))
+  (if (and noxml-fold-mode (string-equal "nxml-mode" major-mode))
       (progn
 	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
 	(set (make-local-variable 'search-invisible) t)
-	(set (make-local-variable 'noXML-fold-spec-list-internal) nil)
-	;; (setq-default noXML-fold-spec-list-internal nil)
-	(add-hook 'post-command-hook 'noXML-fold-post-command t t)
-	;; (add-hook 'noXML-fill-newline-hook 'noXML-fold-update-at-point nil t)
-	(add-hook 'noXML-after-insert-macro-hook
+	(set (make-local-variable 'noxml-fold-spec-list-internal) nil)
+	;; (setq-default noxml-fold-spec-list-internal nil)
+	(add-hook 'post-command-hook 'noxml-fold-post-command t t)
+	;; (add-hook 'noxml-fill-newline-hook 'noxml-fold-update-at-point nil t)
+	(add-hook 'noxml-after-insert-macro-hook
 		  (lambda ()
-		    (when (and noXML-fold-mode noXML-fold-auto)
+		    (when (and noxml-fold-mode noxml-fold-auto)
 		      (save-excursion
 			(backward-char)
-			(or (noXML-fold-item 'inline (point))
-			    (noXML-fold-item 'block (point)))))))
-	;; Update the `noXML-fold-*-spec-list-internal' variables.
-	(set (intern "noXML-fold-spec-list-internal") (noXML-fold-flatten-spec-list (symbol-value (intern "noXML-fold-spec-list")))))
+			(or (noxml-fold-item 'inline (point))
+			    (noxml-fold-item 'block (point)))))))
+	;; Update the `noxml-fold-*-spec-list-internal' variables.
+	(set (intern "noxml-fold-spec-list-internal") (noxml-fold-flatten-spec-list (symbol-value (intern "noxml-fold-spec-list")))))
     (kill-local-variable 'search-invisible)
-    (kill-local-variable 'noXML-fold-spec-list-internal)
-    (remove-hook 'post-command-hook 'noXML-fold-post-command t)
-    ;; (remove-hook 'LaTeX-fill-newline-hook 'noXML-fold-update-at-point t)
-    (noXML-fold-clearout-buffer))
-  ;; (noXML-set-mode-name)
+    (kill-local-variable 'noxml-fold-spec-list-internal)
+    (remove-hook 'post-command-hook 'noxml-fold-post-command t)
+    ;; (remove-hook 'LaTeX-fill-newline-hook 'noxml-fold-update-at-point t)
+    (noxml-fold-clearout-buffer))
+  ;; (noxml-set-mode-name)
   )
 
 (provide 'noxml-fold)
