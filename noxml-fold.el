@@ -32,12 +32,12 @@
 ;; long/deeply nested XML, you should only fold what's within view, or
 ;; make use of `narrow-to-region'.
 
+;;; Code:
+
 (require 'overlay)
 (require 'nxml-mode)
 
 ;;; configuration, vars etc.
-
-;;; Code:
 
 (defcustom noxml-fold-unfold-around-mark t
   "Unfold text around the mark, if active."

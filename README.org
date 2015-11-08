@@ -5,23 +5,35 @@ files, copying a lot from AUCTeX's tex-fold.el. It builds on
 nxml-mode, and will probably break horribly if it is not the
 major-mode.
 
-** Quickstart
+** Installation
+
+*** Melpa
+
+If you're using MELPA, ~M-x list-packages RET C-s noxml-fold i x~
+should work.
+
+
+*** From Github
 
 1) Get the repository:
    #+BEGIN_SRC 
-   git clone https://github.com/paddymcall/noxml-fold.git /some_path_you_like
+   git clone https://github.com/paddymcall/noxml-fold.git ./some_dir
    #+END_SRC
 2) Edit your ~/.emacs:
    #+BEGIN_SRC 
-   (add-to-list 'load-path "/some_path_you_like")
+   (add-to-list 'load-path "<<./path/to/some_dir>>")
    (add-hook 'nxml-mode-hook (lambda () (require 'noxml-fold)))
    #+END_SRC
-3) Then try to open an xml file, make sure you're in nxml-mode, and
-   load noxml-fold with ~M-x noxml-fold-mode~.
 
-The most useful entry points are `noxml-fold-dwim', and
-`noxml-fold-region'. For smaller files, you can also try
-`noxml-fold-buffer'.
+
+** Usage
+
+With an open xml file, make sure you're in nxml-mode, and load
+noxml-fold with ~M-x noxml-fold-mode~.
+
+The most useful entry points are ~noxml-fold-dwim~, and
+~noxml-fold-region~. For smaller files, you can also try
+~noxml-fold-buffer~.
 
 ** Limitations
 
