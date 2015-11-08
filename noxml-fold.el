@@ -188,6 +188,23 @@ string for any unspecified macro or environment."
 (defcustom noxml-fold-spec-list nil
   "A list defining what things to fold, and how.
 
+The list should be an alist associating a group of folding
+rules (given in the cdr) with identifiers (given in the car).
+
+So the general structure should be something like this:
+
+'(((\"http://www.tei-c.org/ns/1.0\" \"TEI\" \"tei\") .
+   (folding rules for TEI docs))
+  (\"http://docbook.org/ns/docbook\" \"book\" \"doc\") .
+  (folding rules for docbook docs))
+
+Useful values for identifying the right folding rules are the
+namespace and the name of the root element.  Currently this will
+work only for the default namespace.
+
+The folding rules, stored in the cdr of each element, should be
+as follows:
+
 The first element of each item can be a string, an integer or a
 function symbol.  The second element is a list of elements to fold.
 
@@ -203,7 +220,8 @@ Customize or reset the mode.
 
 An example I use for TEI XML:
 
-`((\"⚓\" (\"anchor\"));; some string specifiers
+`((\"TEI\" \"http://www.tei-c.org/ns/1.0\")
+ ((\"⚓\" (\"anchor\"));; some string specifiers
  (\"⚡\" (\"pb\"))
  (\"ₗ\" (\"lb\"))
  (\"⚐\" (\"note\"))
@@ -212,11 +230,13 @@ An example I use for TEI XML:
  (noxml-render-direct-children nil);; okay, I don't use this much
  (noxml-get-content
   (\"label\" \"hi\" \"q\" \"corr\" \"persName\" \"span\" \"lem\" \"rdg\" \"emph\" \"del\" \"unclear\" \"w\" \"add\"));; don't hide the content here
- (noxml-render-first-child (\"app\")))';; for the app elements, show whatever is the first sub-element."
-  :type '(repeat (group (choice (string :tag "Display String")
-				(integer :tag "Number of argument" :value 1)
-				(function :tag "Function to execute"))
-			(repeat :tag "Element" (string))))
+ (noxml-render-first-child (\"app\"))))';; for the app elements, show whatever is the first sub-element."
+  :type '(repeat
+	  (group (repeat (string :tag "Namespace identifier"))
+		 (repeat (group (choice (string :tag "Display String")
+					(integer :tag "Number of argument" :value 1)
+					(function :tag "Function to execute"))
+				(repeat :tag "Element" (string))))))
   :group 'noxml-fold)
 
 (defvar noxml-fold-spec-list-internal nil
@@ -229,13 +249,48 @@ and <mode-prefix>-fold-macro-spec-list.")
 
 ;;; utility functions
 
-(defun noxml-fold-flatten-spec-list (specList)
-  "Flattens the SPECLIST `noxml-fold-spec-list such that each element name can be found easily with assoc."
-  (let (flatList)
-    (dolist (set specList flatList)
+(defun noxml-find-default-namespace ()
+  "Try to find the current document's default namespace."
+  ;; (rng-match-possible-namespace-uris)
+  (let ((namespace-regex (rx-to-string '(and "xmlns" "=\"" (group (1+ (not (any "\"")))) "\"")))
+	namespace)
+    (save-excursion
+      (goto-char 0)
+      (while (and (re-search-forward namespace-regex nil t) (null namespace))
+	;; see if nxml marked this up as a namespace
+	(if (member 'nxml-namespace-attribute-value (get-text-property 0 'face (match-string 1)))
+	    (setq namespace (match-string 1))))
+      namespace)))
+
+(defun noxml-find-root-element ()
+    "Get (local) name of the root element."
+  (let ()
+    (save-excursion
+      (goto-char 1)
+      (while (and (xmltok-forward) (not (eq xmltok-type 'start-tag))) nil)
+      (xmltok-start-tag-local-name))))
+
+(defun noxml-find-folding-rules ()
+  "Find the applicable folding rules in `noxml-fold-spec-list'.
+
+It first tries to match the namespaces, then the name of the root
+element, and then falls back on a default."
+  (let ()
+    (or
+     (car (assoc-default (noxml-find-default-namespace) noxml-fold-spec-list '(lambda (x y) (member y x))))
+     (car (assoc-default (noxml-find-root-element) noxml-fold-spec-list '(lambda (x y) (member y x)))))))
+
+
+(defun noxml-fold-flatten-spec-list (spec-list)
+  "Flatten the SPEC-LIST for easy assoc access.
+
+Usually called when the variable `noxml-fold-mode' is set up."
+  (let (flat-list
+	(spec-list (noxml-find-folding-rules)))
+    (dolist (set spec-list flat-list)
       (unless (eq (nth 1 set) nil)
 	(dolist (item (nth 1 set))
-	  (setq flatList (cons (cons item (car set)) flatList)))))))
+	  (setq flat-list (cons (cons item (car set)) flat-list)))))))
 
 (defun noxml-element-attribute-get-value (name &optional as-string)
   "Find the value of the last parsed element's attribute NAME.
