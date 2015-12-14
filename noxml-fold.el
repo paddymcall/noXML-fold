@@ -98,21 +98,73 @@ will fold the whole thing for you only if
 
 (make-variable-buffer-local 'noxml-fold-add-to-screen)
 
+(defface noxml-fold-tag-face
+  '((((class color) (background light))
+     (:inherit nxml-name))
+    (((class color) (background dark))
+     (:inherit nxml-name))
+    (((class grayscale) (background light))
+     (:inherit nxml-name))
+    (((class grayscale) (background dark))
+     (:inherit nxml-name))
+    (t (:inherit nxml-name)))
+  "Face for the display string of folded tags."
+  :group 'noxml-fold)
+
 (defface noxml-fold-folded-face
   '((((class color) (background light))
-     (:foreground "SlateBlue"))
+     (:inherit nxml-text))
     (((class color) (background dark))
-     (:foreground "SlateBlue1"))
+     (:inherit nxml-text))
     (((class grayscale) (background light))
-     (:foreground "DimGray"))
+     (:inherit nxml-text))
     (((class grayscale) (background dark))
-     (:foreground "LightGray"))
-    (t (:slant italic)))
+     (:inherit nxml-text))
+    (t (:inherit nxml-text)))
   "Face for the display string of folded content."
   :group 'noxml-fold)
 
-(defvar noxml-fold-folded-face 'noxml-fold-folded-face
-  "Face for the display string of folded content.")
+;; (defvar noxml-fold-folded-face 'noxml-fold-folded-face
+;;   "Face for the display string of folded content.")
+
+(defface noxml-fold-folded-italic-face
+  '((((class color) (background light))
+     (:inherit noxml-fold-folded-face
+	       :slant italic))
+    (((class color) (background dark))
+     (:inherit noxml-fold-folded-face
+	       :slant italic))
+    (((class grayscale) (background light))
+     (:inherit noxml-fold-folded-face
+	       :slant italic))
+    (((class grayscale) (background dark))
+     (:inherit noxml-fold-folded-face
+	       :slant italic))
+    (t (:inherit noxml-fold-folded-face
+	       :slant italic)))
+  "Face for the display string of folded italic content."
+  :group 'noxml-fold)
+
+(defface noxml-fold-folded-bold-face
+  '((((class color) (background light))
+     (:inherit noxml-fold-folded-face
+	       :weight bold))
+    (((class color) (background dark))
+     (:inherit noxml-fold-folded-face
+	       :weight bold))
+    (((class grayscale) (background light))
+     (:inherit noxml-fold-folded-face
+	       :weight bold))
+    (((class grayscale) (background dark))
+     (:inherit noxml-fold-folded-face
+	       :weight bold))
+    (t (:inherit noxml-fold-folded-face
+	       :weight bold)))
+  "Face for the display string of folded bold content."
+  :group 'noxml-fold)
+
+;; (defvar noxml-fold-folded-italic-face 'noxml-fold-folded-italic-face
+;;   "Face for the display string of folded italic content.")
 
 (defface noxml-fold-unfolded-face
   '((((class color) (background light))
@@ -127,8 +179,8 @@ will fold the whole thing for you only if
   "Face for folded content when it is temporarily opened."
   :group 'noxml-fold)
 
-(defvar noxml-fold-unfolded-face 'noxml-fold-unfolded-face
-  "Face for folded content when it is temporarily opened.")
+;; (defvar noxml-fold-unfolded-face 'noxml-fold-unfolded-face
+;;   "Face for folded content when it is temporarily opened.")
 
 
 (defvar noxml-fold-ellipsis "..."
@@ -926,10 +978,26 @@ That means, put respective properties onto overlay.  Based on
 	      (set-glyph-property glyph 'face noxml-fold-folded-face)))
 	  (set-extent-property ov 'end-glyph glyph))
       (when font-lock-mode
-	(overlay-put ov 'face noxml-fold-folded-face))
+	(overlay-put ov 'face (noxml-get-face ov)))
       (unless (zerop noxml-fold-help-echo-max-length)
 	(overlay-put ov 'help-echo (noxml-fold-make-help-echo
 				    (overlay-start ov) (overlay-end ov))))))))
+
+(defun noxml-get-face (ov)
+  "Get the face to use for overlay OV."
+  (let ((ov-start (overlay-start ov))
+	(ov-end (overlay-end ov)))
+    (save-excursion
+      (goto-char ov-start)
+      (xmltok-forward)
+      (cond ((= ov-end (point)) 'noxml-fold-tag-face)
+	    ((and (eq xmltok-type 'start-tag)
+		  (member (xmltok-start-tag-local-name) '("hi" "emph")))
+	     (cond ((member '("rend" . "bold")
+			    (noxml-element-attribute-get-value t))
+		    'noxml-fold-folded-bold-face)
+		   (t 'noxml-fold-folded-italic-face)))
+	    (t 'noxml-fold-folded-face)))))
 
 
 (defun noxml-fold-dwim ()
