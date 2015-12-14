@@ -867,7 +867,7 @@ Remove the respective properties from the overlay OV."
     (overlay-put ov 'display nil)
     (overlay-put ov 'help-echo nil)
     (when font-lock-mode
-      (overlay-put ov 'face noxml-fold-unfolded-face))))
+      (overlay-put ov 'face 'noxml-fold-unfolded-face))))
 
 (defun noxml-fold-post-command ()
   "Take care to fold/unfold stuff as we move along."
@@ -975,7 +975,7 @@ That means, put respective properties onto overlay.  Based on
 	  (when font-lock-mode
 	    (if face
 		(set-glyph-property glyph 'face face)
-	      (set-glyph-property glyph 'face noxml-fold-folded-face)))
+	      (set-glyph-property glyph 'face 'noxml-fold-folded-face)))
 	  (set-extent-property ov 'end-glyph glyph))
       (when font-lock-mode
 	(overlay-put ov 'face (noxml-get-face ov)))
