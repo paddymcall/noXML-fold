@@ -35,8 +35,8 @@ The most useful entry points are ~noxml-fold-dwim~, and
 ~noxml-fold-region~. For smaller files, you can also try
 ~noxml-fold-buffer~.
 
-There is also a kind of visibility cycling. If on the ``<" of an
-element's start tag, repeated <TAB> will let you show/hide children
+There is also a kind of visibility cycling. If on the ~<~ of an
+element's start tag, repeated ~<TAB>~ will let you show/hide children
 and contents of that element.
 
 ** Limitations
