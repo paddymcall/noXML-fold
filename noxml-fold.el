@@ -36,6 +36,8 @@
 
 (require 'overlay)
 (require 'nxml-mode)
+(require 'cl-lib)
+(require 'cl-extra)
 
 ;;; configuration, vars etc.
 
@@ -134,12 +136,12 @@ will fold the whole thing for you only if
 (defvar noxml-fold-ellipsis "..."
   "String used as display string for overlays instead of a zero-length string.")
 
-(defcustom noxml-fold-command-prefix "\C-c\C-o\C-f"
-  "Prefix key to use for commands in noxml-fold mode.
-The value of this variable is checked as part of loading noxml-fold mode.
-After that, changing the prefix key requires manipulating keymaps."
-  :type 'string
-  :group 'noxml-fold)
+;; (defcustom noxml-fold-command-prefix "\C-c\C-o\C-f"
+;;   "Prefix key to use for commands in noxml-fold mode.
+;; The value of this variable is checked as part of loading noxml-fold mode.
+;; After that, changing the prefix key requires manipulating keymaps."
+;;   :type 'string
+;;   :group 'noxml-fold)
 
 (defcustom noxml-fold-auto nil
   "If non-nil, fold macros automatically.  Leave this at nil for the time being!!"
@@ -148,14 +150,15 @@ After that, changing the prefix key requires manipulating keymaps."
 
 (defvar noxml-fold-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map "\C-o" 'noxml-fold-dwim)
-    (define-key map "\C-b" 'noxml-fold-buffer)
-    (define-key map "\C-r" 'noxml-fold-region)
-    (define-key map "\C-m" 'noxml-fold-macro)
-    (define-key map "\C-e" 'noxml-fold-env)
-    (define-key map "b"    'noxml-fold-clearout-buffer)
-    (define-key map "r"    'noxml-fold-clearout-region)
-    (define-key map "i"    'noxml-fold-clearout-item)
+    (define-key map "\C-c\C-o\C-f\C-o" 'noxml-fold-dwim)
+    (define-key map "\C-c\C-o\C-f\C-b" 'noxml-fold-buffer)
+    (define-key map "\C-c\C-o\C-f\C-r" 'noxml-fold-region)
+    (define-key map "\C-c\C-o\C-f\C-m" 'noxml-fold-macro)
+    (define-key map "\C-c\C-o\C-f\C-e" 'noxml-fold-env)
+    (define-key map "\C-c\C-o\C-fb"    'noxml-fold-clearout-buffer)
+    (define-key map "\C-c\C-o\C-fr"    'noxml-fold-clearout-region)
+    (define-key map "\C-c\C-o\C-fi"    'noxml-fold-clearout-item)
+    (define-key map (kbd "<tab>")  'noxml-fold-hide-show-element)
     map))
 
 (defgroup noxml-fold nil
@@ -431,14 +434,11 @@ enclosed overlays."
 	   (element-end (noxml-find-element-end (point)))
 	   (text (filter-buffer-substring element-start element-end))
 	   (element (concat (substring text 0 2) "../>"))
-	   (noxmloverlay (make-overlay element-start element-end))
-	   )
+	   (noxmloverlay (make-overlay element-start element-end)))
       ;; here, we're at the end of the element
       (overlay-put noxmloverlay 'display element)
       (overlay-put noxmloverlay 'intangible ())
-      (overlay-put noxmloverlay 'category 'noxml-fold)
-	)))
-
+      (overlay-put noxmloverlay 'category 'noxml-fold))))
 
 (defun noxml-render-first-child (position)
   "Render the first child of element at POSITION.
@@ -1103,6 +1103,78 @@ Like `buffer-substring' but copy overlay display strings as well."
       result)))
 
 
+;; simple hide/show element things
+(defun noxml-fold-hide-show-element ()
+  "Show/hide the current element's content and children.
+
+Will only trigger when cursor is on the \"<\" of a start tag."
+  (interactive)
+  (if (looking-at "<[^/]")
+      (noxml-fold-outline-flag-region (point))
+    (define-key noxml-fold-keymap (kbd "<tab>") nil)
+    (call-interactively (key-binding "\t" :accept-default))
+    (define-key noxml-fold-keymap (kbd "<tab>") 'noxml-fold-hide-show-element)))
+
+(defun noxml-fold-outline-flag-region (from &optional flag)
+  "Hide or show element starting at FROM.
+
+Whether to hide or show the thing is decided from the overlay-property .
+
+Based on `outline-flag-region'."
+  (let* ((nxml-sexp-element-flag t)
+	 (to (save-excursion (nxml-forward-balanced-item) (point)))
+	 (state (and
+		 (overlays-at from)
+		 (cl-some (lambda (x) (overlay-get x 'noxml-fold-hidden))
+			  (overlays-at from))))
+	 (flag (or flag
+		   (cond ((eq state 'all) 'children)
+			 ((eq state 'children) 'none)
+			 (t 'all))))
+	 (display-string (save-excursion
+			   (xmltok-save
+			     (xmltok-forward)
+			     (cond ((member xmltok-type '(start-tag empty-element))
+				    (format "<%s ... />" (xmltok-start-tag-local-name)))
+				   (t "some-folded-thing"))))))
+    (remove-overlays from to)
+    (cond
+     ;; fold everything
+     ((eq flag 'all)
+      (let ((o (make-overlay from to)))
+	(overlay-put o 'evaporate t)
+	(overlay-put o 'display display-string)
+	(overlay-put o 'noxml-fold-hidden 'all)
+	(overlay-put o 'noxml-fold-display-string-spec display-string)
+	(overlay-put o 'category 'noxml-fold)
+	(when font-lock-mode
+	  (overlay-put o 'face noxml-fold-folded-face))))
+     ;; fold away children
+     ((eq flag 'children)
+      (let ((o (make-overlay from to)))
+	(overlay-put o 'noxml-fold-hidden 'children)
+	(save-excursion
+	  (save-restriction
+	    (narrow-to-region from to)
+	    (xmltok-forward)
+	    ;; make sure we pass the first start tag
+	    (when (eq xmltok-type 'start-tag)
+	      ;; go to the next start tag
+	      (while (and (xmltok-forward) (not (eq xmltok-type 'start-tag))) t)
+	      (goto-char xmltok-start)
+	      (noxml-fold-outline-flag-region (point) 'all)
+	      (while (and
+		      (condition-case nil (nxml-forward-single-balanced-item) (error nil))
+		      (not (eobp)))
+		;; make sure we're at the right position
+		(save-excursion
+		  (while (and (not (eobp)) (xmltok-forward) (not (eq xmltok-type 'start-tag))) t))
+		(when (member xmltok-type '(start-tag empty-element))
+		  (goto-char xmltok-start)
+		  (noxml-fold-outline-flag-region (point) 'all)))))))))))
+
+
+
 ;; not strictly useful for folding
 (defun noxml-where-am-i (&optional attributes)
   "Show current position as a path of elements.
@@ -1147,7 +1219,7 @@ http://www.emacswiki.org/emacs/NxmlMode#toc11."
 Called interactively, with no prefix argument, toggle the mode.
 With universal prefix ARG (or if ARG is nil) turn mode on.
 With zero or negative ARG turn mode off."
-  nil " noxml" (list (cons noxml-fold-command-prefix noxml-fold-keymap))
+  nil " noxml" noxml-fold-keymap
   (if (and noxml-fold-mode (string-equal "nxml-mode" major-mode))
       (progn
 	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
