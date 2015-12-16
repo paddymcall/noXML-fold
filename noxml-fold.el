@@ -944,8 +944,7 @@ no folded content but an inline  or block element, fold it."
   (cond ((use-region-p)
 	 (cond
 	  ((noxml-fold-clearout-region (region-beginning) (region-end)) (message "Unfolded region."))
-	  ((noxml-fold-region (region-beginning) (region-end)) (message "Folded element."))
-	  ))
+	  ((noxml-fold-region (region-beginning) (region-end)) (message "Folded element."))))
 	((overlays-at (point)) (noxml-fold-clearout-item) (message "Unfolded item."))
 	((noxml-fold-visible) (message "Folded window."))))
 
@@ -1140,7 +1139,7 @@ Based on `outline-flag-region'."
 			     (cond ((member xmltok-type '(start-tag empty-element))
 				    (format "<%s ... />" (xmltok-start-tag-local-name)))
 				   (t "some-folded-thing"))))))
-    (remove-overlays from to)
+    (remove-overlays from to 'category 'noxml-fold)
     (cond
      ;; fold everything
      ((eq flag 'all)
@@ -1156,6 +1155,7 @@ Based on `outline-flag-region'."
      ((eq flag 'children)
       (let ((o (make-overlay from to)))
 	(overlay-put o 'noxml-fold-hidden 'children)
+	(overlay-put o 'category 'noxml-fold)
 	(save-excursion
 	  (save-restriction
 	    (narrow-to-region from to)
