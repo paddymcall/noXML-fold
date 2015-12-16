@@ -37,7 +37,10 @@
 (require 'overlay)
 (require 'nxml-mode)
 (require 'cl-lib)
-(require 'cl-extra)
+;; some with provide statement in cl-extra
+(if (and (<= emacs-major-version 24) (<= emacs-minor-version 4))
+    (load "cl-extra")
+    (require 'cl-extra))
 
 ;;; configuration, vars etc.
 
