@@ -186,29 +186,36 @@ will fold the whole thing for you only if
 (defvar noxml-fold-ellipsis "..."
   "String used as display string for overlays instead of a zero-length string.")
 
-(defcustom noxml-fold-command-prefix "\C-c\C-o\C-f"
-  "Prefix key to use for commands in noxml-fold mode.
-The value of this variable is checked as part of loading noxml-fold mode.
-After that, changing the prefix key requires manipulating keymaps."
-  :type 'string
-  :group 'noxml-fold)
-
 (defcustom noxml-fold-auto nil
   "If non-nil, fold macros automatically.  Leave this at nil for the time being!!"
   :group 'noxml-fold
   :type 'boolean)
 
-(defvar noxml-fold-keymap
-  (let ((map (make-sparse-keymap)))
-    (define-key map "\C-o" 'noxml-fold-dwim)
-    (define-key map "\C-b" 'noxml-fold-buffer)
-    (define-key map "\C-r" 'noxml-fold-region)
-    (define-key map "\C-m" 'noxml-fold-macro)
-    (define-key map "\C-e" 'noxml-fold-env)
-    (define-key map "b"    'noxml-fold-clearout-buffer)
-    (define-key map "r"    'noxml-fold-clearout-region)
-    (define-key map "i"    'noxml-fold-clearout-item)
-    map))
+(defcustom noxml-fold-command-prefix "\C-c\C-o\C-f"
+  "Prefix key to use for commands in noxml-fold mode.
+
+The value of this variable is checked as part of loading
+noxml-fold mode.  After that, changing the prefix key requires
+manipulating keymaps.  
+
+As a memory aid: C-c C-o starts the outline commands in
+`nxml-mode', and this adds a C-f for \"fold\"."
+  :type 'string
+  :group 'noxml-fold)
+
+(defvar noxml-fold-key-bindings
+  '(
+    ("\C-o" . noxml-fold-dwim)
+    ("\C-b" . noxml-fold-buffer)
+    ("\C-r" . noxml-fold-region)
+    ("\C-m" . noxml-fold-macro)
+    ("\C-e" . noxml-fold-env)
+    ("b"    . noxml-fold-clearout-buffer)
+    ("r"    . noxml-fold-clearout-region)
+    ("i"    . noxml-fold-clearout-item))
+  "Keybindings for noxml-fold mode. 
+
+This is just a list of '(KEY . BINDING) definitions.")
 
 (defgroup noxml-fold nil
   "Fold xml elements."
@@ -1205,17 +1212,34 @@ http://www.emacswiki.org/emacs/NxmlMode#toc11."
 	    (message "/%s" (mapconcat 'identity path "/"))
 	  (format "/%s" (mapconcat 'identity path "/")))))))
 
-
 ;;; load everything as minor mode
 ;;;###autoload
 (define-minor-mode noxml-fold-mode
   "Minor mode for hiding and revealing XML tags.
 
+The main entry point is `noxml-fold-dwim', by default bound to
+\"C-c C-o C-f C-o\".  To unfold everything, call
+`noxml-fold-clearout-buffer', \"C-c C-o C-f b\" by default.
+
+See `noxml-fold-key-bindings' and `noxml-fold-command-prefix' for
+all keyboard shortcuts.
+
 Called interactively, with no prefix argument, toggle the mode.
 With universal prefix ARG (or if ARG is nil) turn mode on.
 With zero or negative ARG turn mode off."
-  nil " noxml" (list (cons noxml-fold-command-prefix noxml-fold-keymap))
-  (if (and noxml-fold-mode (string-equal "nxml-mode" major-mode))
+  :init-value nil
+  :lighter " noxml"
+  :group 'noxml-fold
+  :global nil
+  :keymap 
+  (let ((map (make-sparse-keymap)))
+    (mapc (lambda (key)
+	    (define-key map
+	      (kbd (concat noxml-fold-command-prefix (car key)))
+	      (cdr key)))
+	  noxml-fold-key-bindings)
+    map)
+  (if noxml-fold-mode;; true on enabling the mode
       (progn
 	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
 	(set (make-local-variable 'search-invisible) t)
@@ -1235,10 +1259,7 @@ With zero or negative ARG turn mode off."
     (kill-local-variable 'search-invisible)
     (kill-local-variable 'noxml-fold-spec-list-internal)
     (remove-hook 'post-command-hook 'noxml-fold-post-command t)
-    ;; (remove-hook 'LaTeX-fill-newline-hook 'noxml-fold-update-at-point t)
-    (noxml-fold-clearout-buffer))
-  ;; (noxml-set-mode-name)
-  )
+    (noxml-fold-clearout-buffer)))
 
 (provide 'noxml-fold)
 
