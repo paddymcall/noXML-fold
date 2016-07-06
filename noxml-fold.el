@@ -459,20 +459,22 @@ enclosed overlays."
 	  (factor noxml-overlay-priority-step)
 	  (type (or type (if (progn (goto-char start) (nxml-token-after) (noxml-is-inline))
 			     'inline
-			   'block)
-			     )))
-      (if (string-equal type 'inline)
-	  (while (and (< (point-min) (point));; see http://www.emacswiki.org/emacs/NxmlMode#toc11 for this test
-		      (condition-case nil
-			  (progn
-			    (nxml-backward-up-element) ; always returns nil
-			    t)
-			(error nil))
-		      (noxml-is-inline);; stop at block level element
-		      )
-	    (setq ov-depth (- ov-depth factor)))
-	ov-depth))))
-
+			   'block))))
+      (when (eq type 'inline);; block always has 0, keeping it visible under all conditions
+	(while (and (< (point-min) (point));; see http://www.emacswiki.org/emacs/NxmlMode#toc11 for this test
+		    (condition-case nil
+			;; returns nil also for highest level
+			;; element, but error if outside its end
+			;; tag; either way, stop scanning
+			(let ((pos (point)))
+			  (nxml-backward-up-element)
+			  ;; if no error was signalled, return t if we moved, otherwise nil
+			  (not (= pos (point))))
+		      (error nil))
+		    ;; stop at block level element
+		    (noxml-is-inline))
+	  (setq ov-depth (- ov-depth factor))))
+      ov-depth)))
 
 (defun noxml-make-overlay-invisible ()
   "Hides the element surrounding point."
@@ -483,14 +485,11 @@ enclosed overlays."
 	   (element-end (noxml-find-element-end (point)))
 	   (text (filter-buffer-substring element-start element-end))
 	   (element (concat (substring text 0 2) "../>"))
-	   (noxmloverlay (make-overlay element-start element-end))
-	   )
+	   (noxmloverlay (make-overlay element-start element-end)))
       ;; here, we're at the end of the element
       (overlay-put noxmloverlay 'display element)
       (overlay-put noxmloverlay 'intangible ())
-      (overlay-put noxmloverlay 'category 'noxml-fold)
-	)))
-
+      (overlay-put noxmloverlay 'category 'noxml-fold))))
 
 (defun noxml-render-first-child (position)
   "Render the first child of element at POSITION.
@@ -713,8 +712,7 @@ falls back to 2000."
 			    (noxml-fold-item 'block elementVals (* (- 0 (length whackTree)) noxml-overlay-priority-step)))
 			))))
 	      (goto-char xmltok-start)
-	      t))
-	  )))))
+	      t)))))))
 
 (defun noxml-is-inline ()
   "Find out if last scanned element is an inline element or not.
@@ -762,17 +760,19 @@ DEPTH specifies the depth in the document tree (if not supplied,
 we try to find out).  Return non-nil if an item was found and
 folded, nil otherwise.  Based on `TeX-fold-item'."
   (save-excursion
-    (let* (
-	   (item-start
+    (let* ((item-start
 	    (if (listp (car elementPositions))
 		(car (car elementPositions))
-	      (car elementPositions))
-	    )
+	      (car elementPositions)))
 	   (item-end (if (listp (cdr elementPositions))
 			 (cdr (cdr elementPositions))
 		       (cdr elementPositions)))
-	   (item-name (xmltok-start-tag-qname))
-	   )
+	   (item-name (if (and xmltok-start (= item-start xmltok-start))
+			  (xmltok-start-tag-qname)
+			(save-excursion
+			  (goto-char item-start)
+			  (xmltok-forward)
+			  (xmltok-start-tag-qname)))))
       (when item-start
 	(let* (
 	       ;; figure out what this item is called (setq item-name 'anchor)
@@ -805,8 +805,7 @@ folded, nil otherwise.  Based on `TeX-fold-item'."
 		     (if depth
 			 (* depth noxml-overlay-priority-step)
 		       ;; recalculate overlay depth if not supplied
-		       (noxml-overlay-prioritize (car start-and-end) (cdr start-and-end)))
-		     ))
+		       (noxml-overlay-prioritize (car start-and-end) (cdr start-and-end)))))
 		  starts-and-ends)))
 	  (noxml-fold-hide-item ovs))))))
 
