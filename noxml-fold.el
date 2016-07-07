@@ -36,6 +36,7 @@
 
 (require 'overlay)
 (require 'nxml-mode)
+(require 'easymenu)
 
 ;;; configuration, vars etc.
 
@@ -244,7 +245,29 @@ string for any unspecified macro or environment."
   :type 'boolean
   :group 'noxml-fold)
 
-(defcustom noxml-fold-spec-list nil
+(defcustom noxml-fold-spec-list '((("TEI" "http://www.tei-c.org/ns/1.0")
+				   (("⚓"
+				     ("anchor"))
+				    ("⚡"
+				     ("pb"))
+				    ("ₗ"
+				     ("lb"))
+				    ("⚐"
+				     ("note"))
+				    ("ₓ"
+				     ("gap"))
+				    ("➶"
+				     ("ref" "ptr"))
+				    ("noxml-render-direct-children" nil)
+				    (noxml-get-content
+				     ("label" "hi" "q" "corr" "subst" "persName" "span" "lem" "rdg" "emph" "del" "unclear" "w" "add"))
+				    (noxml-render-first-child
+				     ("app"))))
+				  (("book")
+				   ((noxml-get-content
+				     ("emphasis"))
+				    (noxml-render-first-child
+				     ("chapter")))))
   "A list defining what things to fold, and how.
 
 The list should be an alist associating a group of folding
@@ -297,6 +320,10 @@ An example I use for TEI XML:
 					(function :tag "Function to execute"))
 				(repeat :tag "Element" (string))))))
   :group 'noxml-fold)
+
+'(noxml-fold-spec-list
+   (quote
+    ))
 
 (defvar noxml-fold-spec-list-internal nil
   "Internal list of display strings and macros to fold.
@@ -726,24 +753,23 @@ falls back to 2000."
 
 We simply check whether the start tag is preceded by only white
 space or nothing to the start of the line (see
-`noxml-is-not-inline-regexp' for the regex used).  You can override
-this by adding the element name to `noxml-inline-elements'."
+`noxml-is-not-inline-regexp' for the regex used).  You can
+override this (schema independently!) by adding the element name
+to `noxml-inline-elements' or `noxml-block-elements'."
   (save-excursion
-      (let
-	  ((block-regexp (or noxml-is-not-inline-regexp "^\\s-*<[^/]"))
-	   is-inline)
-	(if (member (xmltok-start-tag-local-name) noxml-inline-elements)
-	    t
-	  (if (member (xmltok-start-tag-local-name) noxml-block-elements)
-	      nil
-	    (if (and xmltok-start (not (eq xmltok-type ())))
-		(unless (eq xmltok-start (point-min))
-		  (progn
-		    (goto-char (+ 2 xmltok-start))
-		    (if (not (looking-back block-regexp  (- xmltok-start 50)))
-			t
+    (let ((block-regexp (or noxml-is-not-inline-regexp "^\\s-*<[^/]"))
+	  is-inline)
+      (if (member (xmltok-start-tag-local-name) noxml-inline-elements)
+	  t
+	(if (member (xmltok-start-tag-local-name) noxml-block-elements)
+	    nil
+	  (if (and xmltok-start (not (eq xmltok-type ())))
+	      (unless (eq xmltok-start (point-min))
+		(progn
+		  (goto-char (+ 2 xmltok-start))
+		  (if (not (looking-back block-regexp  (- xmltok-start 50)))
+		      t
 		      ())))))))))
-
 
 (defun noxml-fold-buffer ()
   "Hide all configured macros and environments in the current buffer.
@@ -1239,8 +1265,15 @@ With zero or negative ARG turn mode off."
 	      (cdr key)))
 	  noxml-fold-key-bindings)
     map)
-  (if noxml-fold-mode;; true on enabling the mode
+  (if noxml-fold-mode ;; true on enabling the mode
       (progn
+	(easy-menu-define noxml-fold-menu noxml-fold-mode-map "noXML fold menu"
+	  '("noXML"
+	    ["Fold things" noxml-fold-dwim t]
+	    ["Fold buffer" noxml-fold-buffer t]
+	    "---"
+	    ["Unfold all" noxml-fold-clearout-buffer t]
+	    ["Unfold item" noxml-fold-clearout-item t]))
 	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
 	(set (make-local-variable 'search-invisible) t)
 	(set (make-local-variable 'noxml-fold-spec-list-internal) nil)
