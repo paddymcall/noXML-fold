@@ -203,8 +203,8 @@ The value of this variable is checked as part of loading
 noxml-fold mode.  After that, changing the prefix key requires
 manipulating keymaps.  
 
-As a memory aid: C-c C-o starts the outline commands in
-`nxml-mode', and this adds a C-f for \"fold\"."
+As a memory aid: the outline commands in `nxml-mode' start with
+C-c C-o, and this minor mode adds a C-f for \"fold\"."
   :type 'string
   :group 'noxml-fold)
 
@@ -221,6 +221,16 @@ As a memory aid: C-c C-o starts the outline commands in
   "Keybindings for noxml-fold mode. 
 
 This is just a list of '(KEY . BINDING) definitions.")
+
+(defvar noxml-fold-keymap
+  (let ((map (make-sparse-keymap)))
+    (mapc (lambda (key)
+	    (define-key map
+	      (kbd (concat noxml-fold-command-prefix (car key)))
+	      (cdr key)))
+	  noxml-fold-key-bindings)
+    map))
+
 (defgroup noxml-fold nil
   "Fold xml elements."
   :group 'languages)
@@ -1202,14 +1212,22 @@ Like `buffer-substring' but copy overlay display strings as well."
 
 
 ;; simple hide/show element things
-(defun noxml-fold-hide-show-element ()
+(defun noxml-fold-hide-show-element (&optional interactive)
   "Show/hide the current element's content and children.
 
-Will only trigger when cursor is on the \"<\" of a start tag."
-  (interactive)
+Will only trigger when cursor is on the \"<\" of a start tag, and
+only when INTERACTIVE is non-nil."
+  (interactive
+   (list 'yepp))
   (save-match-data
-    (if (looking-at "<[^/]")
-	(noxml-fold-outline-flag-region (point)))))
+    (when interactive
+      (if (looking-at "<[^/]")
+	  (noxml-fold-outline-flag-region (point))
+	;; otherwise unbind, call, and then rebind key: really not
+	;; an elegant solution
+	(define-key noxml-fold-keymap (kbd "<tab>") nil)
+	(call-interactively (key-binding "\t" :accept-default))
+	(define-key noxml-fold-keymap (kbd "<tab>") 'noxml-fold-hide-show-element)))))
 
 (defun noxml-fold-outline-flag-region (from &optional flag)
   "Hide or show element starting at FROM.
@@ -1247,7 +1265,7 @@ Based on `outline-flag-region'."
 	(overlay-put o 'noxml-fold-display-string-spec display-string)
 	(overlay-put o 'category 'noxml-fold)
 	(when font-lock-mode
-	  (overlay-put o 'face noxml-fold-folded-face))))
+	  (overlay-put o 'face 'noxml-fold-folded-face))))
      ;; fold away children
      ((eq flag 'children)
       (let ((o (make-overlay from to)))
@@ -1329,24 +1347,17 @@ With zero or negative ARG turn mode off."
   :lighter " noxml"
   :group 'noxml-fold
   :global nil
-  :keymap 
-  (let ((map (make-sparse-keymap)))
-    (mapc (lambda (key)
-	    (define-key map
-	      (kbd (concat noxml-fold-command-prefix (car key)))
-	      (cdr key)))
-	  noxml-fold-key-bindings)
-    map)
+  :keymap noxml-fold-keymap  
   (if noxml-fold-mode ;; true on enabling the mode
       (progn
-	(easy-menu-define noxml-fold-menu noxml-fold-mode-map "noXML fold menu"
+	(easy-menu-define noxml-fold-menu noxml-fold-keymap "noXML fold menu"
 	  '("noXML"
 	    ["Fold things" noxml-fold-dwim t]
 	    ["Fold buffer" noxml-fold-buffer t]
 	    "---"
 	    ["Unfold all" noxml-fold-clearout-buffer t]
 	    ["Unfold item" noxml-fold-clearout-item t]))
-	(define-key noxml-fold-mode-map (kbd "<tab>") 'noxml-fold-hide-show-element)
+	(define-key noxml-fold-keymap (kbd "<tab>") 'noxml-fold-hide-show-element)
 	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
 	(set (make-local-variable 'search-invisible) t)
 	(set (make-local-variable 'noxml-fold-spec-list-internal) nil)
