@@ -1207,16 +1207,17 @@ Like `buffer-substring' but copy overlay display strings as well."
 
 Will only trigger when cursor is on the \"<\" of a start tag."
   (interactive)
-  (if (looking-at "<[^/]")
-      (noxml-fold-outline-flag-region (point))
-    (define-key noxml-fold-keymap (kbd "<tab>") nil)
-    (call-interactively (key-binding "\t" :accept-default))
-    (define-key noxml-fold-keymap (kbd "<tab>") 'noxml-fold-hide-show-element)))
+  (save-match-data
+    (if (looking-at "<[^/]")
+	(noxml-fold-outline-flag-region (point)))))
 
 (defun noxml-fold-outline-flag-region (from &optional flag)
   "Hide or show element starting at FROM.
 
-Whether to hide or show the thing is decided from the overlay-property .
+Optional FLAG should be either 'children, to show children, 'all,
+to show everything, or, 'none to hide everything.
+
+Whether to hide or show the thing is decided from the overlay-property.
 
 Based on `outline-flag-region'."
   (let* ((nxml-sexp-element-flag t)
@@ -1345,6 +1346,7 @@ With zero or negative ARG turn mode off."
 	    "---"
 	    ["Unfold all" noxml-fold-clearout-buffer t]
 	    ["Unfold item" noxml-fold-clearout-item t]))
+	(define-key noxml-fold-mode-map (kbd "<tab>") 'noxml-fold-hide-show-element)
 	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
 	(set (make-local-variable 'search-invisible) t)
 	(set (make-local-variable 'noxml-fold-spec-list-internal) nil)
