@@ -213,8 +213,9 @@ C-c C-o, and this minor mode adds a C-f for \"fold\"."
     ("\C-o" . noxml-fold-dwim)
     ("\C-b" . noxml-fold-buffer)
     ("\C-r" . noxml-fold-region)
-    ("\C-m" . noxml-fold-macro)
-    ("\C-e" . noxml-fold-env)
+    ;; TODO
+    ;; ("\C-m" . noxml-fold-macro)
+    ;; ("\C-e" . noxml-fold-env)
     ("b"    . noxml-fold-clearout-buffer)
     ("r"    . noxml-fold-clearout-region)
     ("i"    . noxml-fold-clearout-item))
@@ -1337,8 +1338,12 @@ The main entry point is `noxml-fold-dwim', by default bound to
 \"C-c C-o C-f C-o\".  To unfold everything, call
 `noxml-fold-clearout-buffer', \"C-c C-o C-f b\" by default.
 
-See `noxml-fold-key-bindings' and `noxml-fold-command-prefix' for
-all keyboard shortcuts.
+Keyboard shortcuts: 
+
+\\{noxml-fold-keymap}
+
+See `noxml-fold-key-bindings' and `noxml-fold-command-prefix' to
+configure keyboard shortcuts.
 
 Called interactively, with no prefix argument, toggle the mode.
 With universal prefix ARG (or if ARG is nil) turn mode on.
