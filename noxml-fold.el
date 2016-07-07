@@ -298,6 +298,9 @@ Useful values for identifying the right folding rules are the
 namespace and the name of the root element.  Currently this will
 work only for the default namespace.
 
+The default configuration contains an example I use for TEI XML,
+but should give a rough idea how it works.
+
 The folding rules, stored in the cdr of each element, should be
 as follows:
 
@@ -312,81 +315,71 @@ called with all mandatory arguments of the macro and the result
 of the function call will be used as a replacement for the macro.
 
 Setting this variable does not take effect immediately.  Use
-Customize or reset the mode.
-
-An example I use for TEI XML:
-
-`((\"TEI\" \"http://www.tei-c.org/ns/1.0\")
- ((\"⚓\" (\"anchor\"));; some string specifiers
- (\"⚡\" (\"pb\"))
- (\"ₗ\" (\"lb\"))
- (\"⚐\" (\"note\"))
- (\"ₓ\" (\"gap\"))
- (\"➶\" (\"ref\" \"ptr\"))
- (noxml-render-direct-children nil);; okay, I don't use this much
- (noxml-get-content
-  (\"label\" \"hi\" \"q\" \"corr\" \"persName\" \"span\" \"lem\" \"rdg\" \"emph\" \"del\" \"unclear\" \"w\" \"add\"));; don't hide the content here
- (noxml-render-first-child (\"app\"))))';; for the app elements, show whatever is the first sub-element."
+Customize or reset the mode."
   :type '(repeat
-	  (group (repeat (string :tag "Namespace identifier"))
+	  (group (repeat (string :tag "Namespace or root element"))
 		 (repeat (group (choice (string :tag "Display String")
 					(integer :tag "Number of argument" :value 1)
 					(function :tag "Function to execute"))
-				(repeat :tag "Element" (string))))))
+				(repeat :tag "Element to match" (string))))))
   :group 'noxml-fold)
 
-(defvar noxml-fold-spec-list-internal nil
-  "Internal list of display strings and macros to fold.
-Is updated when the noxml-Fold mode is being activated and then
-contains all constructs to fold for the given buffer or mode
-respectively, i.e. contents of both `noxml-fold-spec-list'
-and <mode-prefix>-fold-macro-spec-list.")
-;; (make-variable-buffer-local 'noxml-fold-spec-list-internal);; not a good idea: do this in mode definition below (see http://www.emacswiki.org/emacs/BufferLocalVariable)
+(defvar noxml-fold-spec-list-local nil
+  "Things to fold for a given buffer. Set when mode is loaded.")
 
 ;;; utility functions
 
 (defun noxml-find-default-namespace ()
   "Try to find the current document's default namespace."
   ;; (rng-match-possible-namespace-uris)
-  (let ((namespace-regex (rx-to-string '(and "xmlns" "=\"" (group (1+ (not (any "\"")))) "\"")))
-	namespace)
+  (let (namespace)
     (save-excursion
-      (goto-char 0)
-      (while (and (re-search-forward namespace-regex nil t) (null namespace))
-	;; see if nxml marked this up as a namespace
-	(if (member 'nxml-namespace-attribute-value (get-text-property 0 'face (match-string 1)))
-	    (setq namespace (match-string 1))))
-      namespace)))
+      (xmltok-save
+	(save-restriction
+	  (widen)
+	  (goto-char (point-min))
+	  (while (and (xmltok-forward) (not (member xmltok-type '(start-tag empty-element)))) t)
+	  (mapc
+	   (lambda (x)
+	     (when (string= "xmlns" (xmltok-attribute-local-name x))
+	       (setq namespace (xmltok-attribute-value x))))
+	   xmltok-namespace-attributes)
+	  namespace)))))
 
 (defun noxml-find-root-element ()
     "Get (local) name of the root element."
   (let ()
     (save-excursion
-      (goto-char 1)
-      (while (and (xmltok-forward) (not (eq xmltok-type 'start-tag))) nil)
-      (xmltok-start-tag-local-name))))
+      (xmltok-save
+	(save-restriction
+	  (widen)
+	  (goto-char (point-min))
+	  (while (and (xmltok-forward) (not (member xmltok-type '(empty-element start-tag)))) t)
+	  (xmltok-start-tag-local-name))))))
 
 (defun noxml-find-folding-rules ()
   "Find the applicable folding rules in `noxml-fold-spec-list'.
 
-It first tries to match the namespaces, then the name of the root
-element, and then falls back on a default."
+Finds the folding rules in `noxml-fold-spec-list' by matching the
+root element's default namespace, or, failing that, the root
+element's local name."
   (let ()
     (or
      (car (assoc-default (noxml-find-default-namespace) noxml-fold-spec-list '(lambda (x y) (member y x))))
      (car (assoc-default (noxml-find-root-element) noxml-fold-spec-list '(lambda (x y) (member y x)))))))
 
 
-(defun noxml-fold-flatten-spec-list (spec-list)
+(defun noxml-fold-flatten-spec-list (&optional spec-list)
   "Flatten the SPEC-LIST for easy assoc access.
 
 Usually called when the variable `noxml-fold-mode' is set up."
-  (let (flat-list
-	(spec-list (noxml-find-folding-rules)))
-    (dolist (set spec-list flat-list)
+  (let ((spec-list (or spec-list (noxml-find-folding-rules)))
+	flat-list)
+    (dolist (set spec-list)
       (unless (eq (nth 1 set) nil)
 	(dolist (item (nth 1 set))
-	  (setq flat-list (cons (cons item (car set)) flat-list)))))))
+	  (push (cons item (car set)) flat-list))))
+    flat-list))
 
 (defun noxml-element-attribute-get-value (name &optional as-string)
   "Find the value of the last parsed element's attribute NAME.
@@ -434,40 +427,36 @@ http://www.dpawson.co.uk/relaxng/nxml/nxmlGeneral.html
 `(nxml-beginning/end-of-element)'."
   (interactive "d")
   (save-excursion
-    (let((nxml-sexp-element-flag nil))
-      (progn
-	 (goto-char position);; go where we want
-	 (goto-char ;; go to the end of the element
-	  (if (looking-at "<")
-	      (nxml-token-after)
-	    (nxml-token-before)))
-	 (nxml-token-before)
-	 (cond
-	  ((string-equal xmltok-type "empty-element") t)
-	  ((memq xmltok-type '(data space)) (progn (nxml-scan-element-backward (point) t) xmltok-start))
-	  ((string-equal xmltok-type "start-tag") t);; already evaluated above
-	  ((string-equal xmltok-type "end-tag") (progn (nxml-backward-element)));;	  
-	  (t t)
-	  )
-	 (if (called-interactively-p 'interactive)
-	     (message "The element starts at char: %d" xmltok-start)
-	   xmltok-start)))))
+    (xmltok-save
+      (let((nxml-sexp-element-flag nil))
+	(progn
+	  (goto-char position) ;; go where we want
+	  (goto-char	      ;; go to the end of the element
+	   (if (looking-at "<")
+	       (nxml-token-after)
+	     (nxml-token-before)))
+	  (nxml-token-before)
+	  (cond
+	   ((eq xmltok-type 'empty-element) t)
+	   ((memq xmltok-type '(data space)) (progn (nxml-scan-element-backward (point) t) xmltok-start))
+	   ((string-equal xmltok-type "start-tag") t) ;; already evaluated above
+	   ((string-equal xmltok-type "end-tag") (progn (nxml-backward-element))) ;;	  
+	   (t t)
+	   )
+	  (if (called-interactively-p 'interactive)
+	      (message "The element starts at char: %d" xmltok-start)
+	    xmltok-start))))))
 
 (defun noxml-find-element-end (position)
   "Return the position of the element starting at POSITION."
-  (interactive "d")
   (save-excursion
-    (let (
-	  (nxml-sexp-element-flag nil)
+    (let ((nxml-sexp-element-flag nil)
 	  (start-element (noxml-find-element-start position))
 	  end-of-end-tag
 	  xmltok-start)
       (progn
 	(setq end-of-end-tag (nxml-scan-element-forward start-element))
-	(if (called-interactively-p 'interactive)
-	    (message "The element ends at char: %d" end-of-end-tag)
-	  end-of-end-tag)))))
-
+	end-of-end-tag))))
 
 (defun noxml-fold-make-overlay (ov-start ov-end type display-string-spec priority)
   "Make a noxml-fold overlay extending from OV-START to OV-END.
@@ -571,8 +560,7 @@ Useful for stuff like <app><lem>, or <choice><sic>."
 		  (t (setq content "[no sub-element found]");; the default behaviour
 		     ))
 	    ))))
-    content
-    ))
+    content))
 
 (defun noxml-render-direct-children (position)
   "Render element at POSITION, showing all its direct children.
@@ -639,7 +627,7 @@ Useful for stuff like <lg><l/><l/> etc."
 	  (cond
 	   ;; if the element starts at the beginning of the region, and is empty
 	   ((and (= xmltok-start from-here)
-		 (string-equal xmltok-type "empty-element"))
+		 (eq xmltok-type 'empty-element))
 	    (setq content (noxml-fold-get-element-name xmltok-start)));; return its name
 	   ;; if this is the end tag of the whole element, just ignore
 	   ((= (nxml-token-after) to-here) t)
@@ -654,13 +642,12 @@ Useful for stuff like <lg><l/><l/> etc."
 		  (if (overlay-get overlay 'display)
 		      (setq content (concat (substring-no-properties (overlay-get overlay 'display)) content )))
 		  ))))
-	   ((string-equal xmltok-type "start-tag");; if we're on a start tag, ignore
+	   ((eq xmltok-type 'start-tag);; if we're on a start tag, ignore
 	    t)
 	   ((memq xmltok-type '(data space))
 	    (setq content (concat (filter-buffer-substring xmltok-start (nxml-token-after)) content )))
 	   (t t)))
-	content
-	)))
+	content)))
 
 (defun noxml-fold-clearout-region (start end)
   "Permanently show all elements in region starting at START and ending at END."
@@ -720,14 +707,12 @@ falls back to 2000."
   (interactive "r")
   (save-excursion
     (save-restriction
-      (let
-	  ((from-here start)
+      (let ((from-here start)
 	   (to-here end)
 	   (current-relative-depth 0)
 	   (nxml-sexp-element-flag nil)
 	   whackTree;; where we store tag starts and ends
-	   elementVals
-	   )
+	   elementVals)
 	(progn
 	  (narrow-to-region from-here to-here)
 	  (goto-char to-here)
@@ -790,8 +775,8 @@ and `noxml-fold-math-spec-list', and environments in `noxml-fold-env-spec-list'.
   (noxml-fold-region (point-min) (point-max)))
 
 
-(defun noxml-fold-item (type &optional elementPositions depth)
-  "Hide the item on which point currently is located.
+(defun noxml-fold-item (type positions &optional depth)
+  "Hide an item of TYPE at .
 
 TYPE specifies the type of item and can be one of the symbols
 'inline or 'block, for inline and block elements respectively.
@@ -804,18 +789,19 @@ we try to find out).  Return non-nil if an item was found and
 folded, nil otherwise.  Based on `TeX-fold-item'."
   (save-excursion
     (let* ((item-start
-	    (if (listp (car elementPositions))
-		(car (car elementPositions))
-	      (car elementPositions)))
-	   (item-end (if (listp (cdr elementPositions))
-			 (cdr (cdr elementPositions))
-		       (cdr elementPositions)))
+	    (if (listp (car positions))
+		(caar positions)
+	      (car positions)))
+	   (item-end (if (listp (cdr positions))
+			 (cdr (cdr positions))
+		       (cdr positions)))
 	   (item-name (if (and xmltok-start (= item-start xmltok-start))
 			  (xmltok-start-tag-qname)
 			(save-excursion
-			  (goto-char item-start)
-			  (xmltok-forward)
-			  (xmltok-start-tag-qname)))))
+			  (xmltok-save
+			    (goto-char item-start)
+			    (xmltok-forward)
+			    (xmltok-start-tag-qname))))))
       (when item-start
 	(let* (
 	       ;; figure out what this item is called (setq item-name 'anchor)
@@ -824,15 +810,14 @@ folded, nil otherwise.  Based on `TeX-fold-item'."
 		(if (and (not (eq xmltok-type 'empty-element)) (eq type 'block))
 		    (list
 		     (cons item-start
-			   (cdr (car elementPositions))
-			   )
+			   (cdr (car positions)))
 		     (cons
-		      (car (cdr elementPositions))
+		      (car (cdr positions))
 		      item-end))
 		  (list (cons item-start item-end))))
 	       (display-string-spec ;; what to show when folding
 		(or
-		 (cdr (assoc item-name noxml-fold-spec-list-internal))
+		 (cdr (assoc item-name noxml-fold-spec-list-local))
 		 (if noxml-fold-unspec-use-name
 			(concat "[" item-name "]")
 		      (if (eq type 'block)
@@ -979,8 +964,7 @@ That means, put respective properties onto overlay.  Based on
 	   (computed (cond ;; the specification spec can be either a string or a function
 		      ((stringp spec)
 		     ;;(noxml-fold-expand-spec spec ov-start ov-end);; yes, not really relevant for xml folding i think
-		     spec
-		     )
+		     spec)
 		    ((functionp spec);; if we have a function to call here
 		     (let ((arg ov-start) result)
 		       (setq result (or (condition-case nil
@@ -1030,17 +1014,17 @@ That means, put respective properties onto overlay.  Based on
   (let ((ov-start (overlay-start ov))
 	(ov-end (overlay-end ov)))
     (save-excursion
-      (goto-char ov-start)
-      (xmltok-forward)
-      (cond ((= ov-end (point)) 'noxml-fold-tag-face)
-	    ((and (eq xmltok-type 'start-tag)
-		  (member (xmltok-start-tag-local-name) '("hi" "emph")))
-	     (cond ((member '("rend" . "bold")
-			    (noxml-element-attribute-get-value t))
-		    'noxml-fold-folded-bold-face)
-		   (t 'noxml-fold-folded-italic-face)))
-	    (t 'noxml-fold-folded-face)))))
-
+      (xmltok-save
+	(goto-char ov-start)
+	(xmltok-forward)
+	(cond ((= ov-end (point)) 'noxml-fold-tag-face)
+	      ((and (eq xmltok-type 'start-tag)
+		    (member (xmltok-start-tag-local-name) '("hi" "emph")))
+	       (cond ((member '("rend" . "bold")
+			      (noxml-element-attribute-get-value t))
+		      'noxml-fold-folded-bold-face)
+		     (t 'noxml-fold-folded-italic-face)))
+	      (t 'noxml-fold-folded-face))))))
 
 (defun noxml-fold-dwim ()
   "Hide or show items according to the current context.
@@ -1274,23 +1258,24 @@ Based on `outline-flag-region'."
 	(overlay-put o 'category 'noxml-fold)
 	(save-excursion
 	  (save-restriction
-	    (narrow-to-region from to)
-	    (xmltok-forward)
-	    ;; make sure we pass the first start tag
-	    (when (eq xmltok-type 'start-tag)
-	      ;; go to the next start tag
-	      (while (and (xmltok-forward) (not (eq xmltok-type 'start-tag))) t)
-	      (goto-char xmltok-start)
-	      (noxml-fold-outline-flag-region (point) 'all)
-	      (while (and
-		      (condition-case nil (nxml-forward-single-balanced-item) (error nil))
-		      (not (eobp)))
-		;; make sure we're at the right position
-		(save-excursion
-		  (while (and (not (eobp)) (xmltok-forward) (not (eq xmltok-type 'start-tag))) t))
-		(when (member xmltok-type '(start-tag empty-element))
-		  (goto-char xmltok-start)
-		  (noxml-fold-outline-flag-region (point) 'all)))))))))))
+	    (xmltok-save
+	     (narrow-to-region from to)
+	     (xmltok-forward)
+	     ;; make sure we pass the first start tag
+	     (when (eq xmltok-type 'start-tag)
+	       ;; go to the next start tag
+	       (while (and (xmltok-forward) (not (eq xmltok-type 'start-tag))) t)
+	       (goto-char xmltok-start)
+	       (noxml-fold-outline-flag-region (point) 'all)
+	       (while (and
+		       (condition-case nil (nxml-forward-single-balanced-item) (error nil))
+		       (not (eobp)))
+		 ;; make sure we're at the right position
+		 (save-excursion
+		   (while (and (not (eobp)) (xmltok-forward) (not (eq xmltok-type 'start-tag))) t))
+		 (when (member xmltok-type '(start-tag empty-element))
+		   (goto-char xmltok-start)
+		   (noxml-fold-outline-flag-region (point) 'all))))))))))))
 
 
 
@@ -1365,7 +1350,6 @@ With zero or negative ARG turn mode off."
 	(define-key noxml-fold-keymap (kbd "<tab>") 'noxml-fold-hide-show-element)
 	;; (set 'nxml-sexp-element-flag nil);; functions depend on this!---> should *really* be bound in functions as needed
 	(set (make-local-variable 'search-invisible) t)
-	(set (make-local-variable 'noxml-fold-spec-list-internal) nil)
 	;; (setq-default noxml-fold-spec-list-internal nil)
 	(add-hook 'post-command-hook 'noxml-fold-post-command t t)
 	;; (add-hook 'noxml-fill-newline-hook 'noxml-fold-update-at-point nil t)
@@ -1376,8 +1360,8 @@ With zero or negative ARG turn mode off."
 			(backward-char)
 			(or (noxml-fold-item 'inline (point))
 			    (noxml-fold-item 'block (point)))))))
-	;; Update the `noxml-fold-*-spec-list-internal' variables.
-	(set (intern "noxml-fold-spec-list-internal") (noxml-fold-flatten-spec-list (symbol-value (intern "noxml-fold-spec-list")))))
+	(set (make-local-variable 'noxml-fold-spec-list-local)
+	     (noxml-fold-flatten-spec-list (noxml-find-folding-rules))))
     (kill-local-variable 'search-invisible)
     (kill-local-variable 'noxml-fold-spec-list-internal)
     (remove-hook 'post-command-hook 'noxml-fold-post-command t)

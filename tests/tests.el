@@ -310,3 +310,59 @@ http://stackoverflow.com/questions/2504418/emacs-lisp-buffer-not-running-font-lo
 
 ;; (ert 'noxml-test-overlay-prioritize)
 
+(ert-deftest noxml-test-flatten-spec-list ()
+  (should
+   (equal
+    (noxml-fold-flatten-spec-list
+     '(("⚓"
+	("anchor"))
+       ("⚡"
+	("pb"))
+       ("ₗ"
+	("lb"))
+       ("⚐"
+	("note"))
+       ("ₓ"
+	("gap"))
+       ("➶"
+	("ref" "ptr"))
+       ("noxml-render-direct-children" nil)
+       (noxml-get-content
+	("label" "hi" "q" "corr" "subst" "persName" "span" "lem" "rdg" "emph" "del" "unclear" "w" "add"))
+       (noxml-render-first-child
+	("app"))))
+    '(("app" . noxml-render-first-child)
+     ("add" . noxml-get-content)
+     ("w" . noxml-get-content)
+     ("unclear" . noxml-get-content)
+     ("del" . noxml-get-content)
+     ("emph" . noxml-get-content)
+     ("rdg" . noxml-get-content)
+     ("lem" . noxml-get-content)
+     ("span" . noxml-get-content)
+     ("persName" . noxml-get-content)
+     ("subst" . noxml-get-content)
+     ("corr" . noxml-get-content)
+     ("q" . noxml-get-content)
+     ("hi" . noxml-get-content)
+     ("label" . noxml-get-content)
+     ("ptr" . "➶")
+     ("ref" . "➶")
+     ("gap" . "ₓ")
+     ("note" . "⚐")
+     ("lb" . "ₗ")
+     ("pb" . "⚡")
+     ("anchor" . "⚓")))))
+
+;; (ert 'noxml-test-flatten-spec-list)
+
+(ert-deftest noxml-test-find-default-namespace ()
+  (let ((cases '(("<div>hello</div>" . nil)
+		 ("<div xmlns=\"http://www.tei-c.org/ns/1.0\" ><p><hi>hello</hi> to you!</p></div>" . "http://www.tei-c.org/ns/1.0"))))
+    (dolist (case cases)
+      (with-temp-buffer
+	(insert (car case))
+	(should
+	 (equal
+	  (noxml-find-default-namespace)
+	  (cdr case)))))))
