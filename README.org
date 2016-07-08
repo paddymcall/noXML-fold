@@ -5,6 +5,9 @@ files, copying a lot from AUCTeX's tex-fold.el. It builds on
 nxml-mode, and will probably break horribly if it is not the
 major-mode.
 
+See the [[./sample.html]] for a very simple example of what it's supposed
+to do.
+
 ** Installation
 
 *** Melpa
