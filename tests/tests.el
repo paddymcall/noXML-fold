@@ -366,3 +366,19 @@ http://stackoverflow.com/questions/2504418/emacs-lisp-buffer-not-running-font-lo
 	 (equal
 	  (noxml-find-default-namespace)
 	  (cdr case)))))))
+
+;; (ert 'noxml-test-find-default-namespace)
+
+
+;; avoid breaking on emptyish buffers
+
+(ert-deftest noxml-test-do-not-break-on-empty-buffer ()
+  (should
+   (equal t
+	  (with-temp-buffer
+	    (insert "")
+	    (noxml-fold-mode 1)))))
+
+;; (ert 'noxml-test-do-not-break-on-empty-buffer)
+
+
