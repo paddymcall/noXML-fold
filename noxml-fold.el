@@ -1044,7 +1044,10 @@ no folded content but an inline  or block element, fold it."
 	  ((noxml-fold-clearout-region (region-beginning) (region-end)) (message "Unfolded region."))
 	  ((noxml-fold-region (region-beginning) (region-end)) (message "Folded element."))))
 	((overlays-at (point)) (noxml-fold-clearout-item) (message "Unfolded item."))
-	((noxml-fold-visible) (message "Folded window."))))
+	(t (progn
+	     (noxml-fold-clearout-buffer)
+	     (noxml-fold-visible)
+	     (message "Folded window.")))))
 
 ;; (defun noxml-make-overlay-visible (position)
 ;;   (interactive "d");; interactive, with the point of the mark as an integer
